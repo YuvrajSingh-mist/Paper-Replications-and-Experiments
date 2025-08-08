@@ -29,7 +29,7 @@ from liger_kernel.transformers import LigerLayerNorm
 from liger_kernel.transformers import LigerFusedLinearCrossEntropyLoss
 
 
-TOKEN = 'REMOVED_HF_TOKEN'
+TOKEN = 'your_hf_token_here'
 tinystories = False
 fw = True
 fw_train = None
