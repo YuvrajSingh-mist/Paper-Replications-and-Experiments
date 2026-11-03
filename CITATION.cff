@@ -1,6 +1,6 @@
 cff-version: 1.2.0
-message: If you use Paper-Replications (implementations, notebooks, or results), please cite it as below.
-title: "Paper-Replications: From-Scratch PyTorch Replications of Classic and SOTA AI/ML Papers"
+message: If you use Paper Replications and Experiments (implementations, notebooks, or results), please cite it as below.
+title: "Paper Replications and Experiments: From-Scratch PyTorch Implementations of Classic and SOTA AI/ML Papers"
 type: software
 authors:
   - family-names: Singh
@@ -8,8 +8,8 @@ authors:
     orcid: "https://orcid.org/0009-0005-4120-555X"
 date-released: "2026-10-07"
 year: 2026
-url: "https://github.com/YuvrajSingh-mist/Paper-Replications"
-repository-code: "https://github.com/YuvrajSingh-mist/Paper-Replications"
+url: "https://github.com/YuvrajSingh-mist/Paper-Replications-and-Experiments"
+repository-code: "https://github.com/YuvrajSingh-mist/Paper-Replications-and-Experiments"
 license: Apache-2.0
 doi: "10.5281/zenodo.23198171"
 keywords:
@@ -19,12 +19,16 @@ keywords:
   - attention-mechanism
   - deep-learning
   - from-scratch
+  - post-training
+  - fine-tuning
+  - sft
+  - grpo
 preferred-citation:
   type: generic
-  title: "Paper-Replications: From-Scratch PyTorch Replications of Classic and SOTA AI/ML Papers"
+  title: "Paper Replications and Experiments: From-Scratch PyTorch Implementations of Classic and SOTA AI/ML Papers"
   authors:
     - family-names: Singh
       given-names: Yuvraj
   year: 2026
-  url: "https://github.com/YuvrajSingh-mist/Paper-Replications"
-  howpublished: "\\url{https://github.com/YuvrajSingh-mist/Paper-Replications}"
+  url: "https://github.com/YuvrajSingh-mist/Paper-Replications-and-Experiments"
+  howpublished: "\\url{https://github.com/YuvrajSingh-mist/Paper-Replications-and-Experiments}"

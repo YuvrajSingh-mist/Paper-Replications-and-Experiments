@@ -4,7 +4,7 @@ Fine-tuning and post-training runs: SFT, GRPO, DPO/ORPO variants, and whatever c
 
 ## What belongs here, and what doesn't
 
-The rest of this repo keeps one promise: one folder per paper, reimplemented. `DPO/`, `ORPO/` and `SimplePO/` hold up their end of that bargain.
+The rest of this repo keeps one promise: one folder per paper, reimplemented. `Replications/DPO/`, `Replications/ORPO/` and `Replications/SimplePO/` hold up their end of that bargain.
 
 This folder is different. It holds the runs where the point is a hypothesis of my own, not a paper's results:
 

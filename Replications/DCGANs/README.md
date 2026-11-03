@@ -21,7 +21,7 @@ I implemented a DCGAN Architecture from Scratch using Pytorch on CelebA and CIFA
 
 **CelebA**
 
-![fake_images_steps_11700](https://github.com/YuvrajSingh-mist/Paper-Replications/assets/141050962/0e0c42ff-3f07-40a3-9a68-60d432461186)
+![fake_images_steps_11700](https://github.com/YuvrajSingh-mist/Paper-Replications-and-Experiments/assets/141050962/0e0c42ff-3f07-40a3-9a68-60d432461186)
 
 
 
@@ -29,7 +29,7 @@ I implemented a DCGAN Architecture from Scratch using Pytorch on CelebA and CIFA
 
 **CIFAR10**
 
-![fake_images_steps_7500](https://github.com/YuvrajSingh-mist/Paper-Replications/assets/141050962/09ce91e1-45d5-4929-ba25-50f4ef874490)
+![fake_images_steps_7500](https://github.com/YuvrajSingh-mist/Paper-Replications-and-Experiments/assets/141050962/09ce91e1-45d5-4929-ba25-50f4ef874490)
 
 
 #### Model weights Download Link: [link](https://drive.google.com/drive/folders/1BzSxP1k-6BIhgYSodi0rMsmzITP07YVS?usp=sharing)

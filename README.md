@@ -1,8 +1,8 @@
 <div align="center">
 
-# Paper-Replications
+# Paper-Replications-and-Experiments
 
-**From-scratch PyTorch replications of classic and SOTA AI/ML papers**
+**From-scratch PyTorch replications of classic and SOTA AI/ML papers, plus my own post-training experiments**
 
 [![license: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE) [![dataset: CC BY 4.0](https://img.shields.io/badge/dataset-CC_BY_4.0-lightgrey)](LICENSE-DATASET) [![Sponsor: GitHub](https://img.shields.io/badge/Sponsor-GitHub-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/YuvrajSingh-mist) [![Buy me a coffee](https://img.shields.io/badge/Buy_me_a_coffee-FFDD00?logo=buymeacoffee&logoColor=black)](https://ko-fi.com/O7W120DR8R)
 
@@ -17,6 +17,13 @@ Visit [smolhub](https://smolhub.com) to view the deployed models.
 
 
 ## Structure
+
+Two top-level folders:
+
+- **`Replications/`**: one folder per paper, model or technique, reproduced from scratch.
+- **`Post-Training/`**: fine-tuning and post-training runs (SFT, GRPO, preference optimisation). Recipes plus my own experiments.
+
+### Replications/
 
 - **Attention Mechanisms/**: Implementations and experiments with various attention mechanisms.
 - **BERT/**: Replication and exploration of the BERT model.
@@ -43,7 +50,6 @@ Visit [smolhub](https://smolhub.com) to view the deployed models.
 - **ORPO/**: Online RLHF Preference Optimization.
 - **PaliGemma/**: PaliGemma model replications.
 - **Pix2Pix/**: Image-to-image translation with Pix2Pix.
-- **Post-Training/**: SFT, GRPO and post-training runs. Replication-style recipes plus my own experiments.
 - **RNNs/**: Recurrent Neural Networks.
 - **Seq2Seq/**: Sequence-to-sequence models.
 - **SigLip/**: Sigmoid Loss for Language-Image Pretraining.
@@ -54,6 +60,12 @@ Visit [smolhub](https://smolhub.com) to view the deployed models.
 - **ViT/**: Vision Transformer models.
 - **WGANs/**: Wasserstein GANs.
 - **Whisper/**: Whisper speech recognition model replications.
+
+### Post-Training/
+
+- **sft/**: supervised fine-tuning recipes.
+- **grpo/**: GRPO and RL-style post-training recipes.
+- **runs/**: my own experiments on my own data. Not paper reproductions.
 
 
 ## Usage
@@ -84,12 +96,12 @@ If you find this repository useful in your research, please cite it:
 
 ```bibtex
 @software{singh_paper_replications_2025,
-  title     = {Paper-Replications: From-Scratch PyTorch Replications of Classic and SOTA AI/ML Papers},
+  title     = {Paper Replications and Experiments: From-Scratch PyTorch Implementations of Classic and SOTA AI/ML Papers},
   author    = {Singh, Yuvraj},
   year      = {2026},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.23198171},
-  url       = {https://github.com/YuvrajSingh-mist/Paper-Replications}
+  url       = {https://github.com/YuvrajSingh-mist/Paper-Replications-and-Experiments}
 }
 ```
 

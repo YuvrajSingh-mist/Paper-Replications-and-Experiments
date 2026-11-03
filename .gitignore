@@ -1,8 +1,8 @@
 .env
 Errror_Gihtub_Login.txt
-CGANs/output_images
-CycleGANs/output_images_val
-Llama4/llama4.ipynb
+Replications/CGANs/output_images
+Replications/CycleGANs/output_images_val
+Replications/Llama4/llama4.ipynb
 
 # Python / Jupyter
 __pycache__/

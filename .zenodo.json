@@ -1,6 +1,6 @@
 {
-  "title": "Paper-Replications: From-Scratch PyTorch Replications of Classic and SOTA AI/ML Papers",
-  "description": "<p><strong>Paper-Replications</strong> is a collection of from-scratch PyTorch implementations replicating classic and state-of-the-art AI/ML papers: transformer variants, attention mechanisms, GANs, diffusion models, CLIP-style vision-language models, LoRA and MoE fine-tuning, and more.</p>\n<p>The Paper-Replications source code and notebooks are licensed under Apache-2.0. Documentation, diagrams, generated results and published experiment artifacts are licensed under CC BY 4.0.</p>",
+  "title": "Paper Replications and Experiments: From-Scratch PyTorch Implementations of Classic and SOTA AI/ML Papers",
+  "description": "<p><strong>Paper Replications and Experiments</strong> is a collection of from-scratch PyTorch implementations replicating classic and state-of-the-art AI/ML papers, plus post-training experiments on top of them: transformer variants, attention mechanisms, GANs, diffusion models, CLIP-style vision-language models, LoRA and MoE fine-tuning, SFT and GRPO runs, and more.</p>\n<p>Paper code and notebooks are licenced under Apache-2.0. Documentation, diagrams, generated results and published experiment artifacts are licensed under CC BY 4.0.</p>",
   "creators": [
     {
       "name": "Singh, Yuvraj",
@@ -19,11 +19,15 @@
     "deep learning",
     "generative models",
     "from scratch",
-    "reproducibility"
+    "reproducibility",
+    "post-training",
+    "fine-tuning",
+    "sft",
+    "grpo"
   ],
   "related_identifiers": [
     {
-      "identifier": "https://github.com/YuvrajSingh-mist/Paper-Replications",
+      "identifier": "https://github.com/YuvrajSingh-mist/Paper-Replications-and-Experiments",
       "relation": "isSupplementTo",
       "scheme": "url"
     },
@@ -34,5 +38,5 @@
     }
   ],
   "notes": "Code is licensed under Apache-2.0. Documentation, diagrams, generated results and published experiment artifacts are additionally licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/).",
-  "version": "v1.0.0"
+  "version": "v1.1.0"
 }
