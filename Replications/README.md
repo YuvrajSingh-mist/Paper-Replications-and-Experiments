@@ -21,7 +21,6 @@ If you're looking for fine-tuning and post-training runs, those live in [`../Pos
 
 ## Vision and multimodal
 
-- **CLAP/**: Contrastive Language-Audio Pretraining.
 - **CLiP/**: CLIP and related vision-language models.
 - **Llava/**: Large Language and Vision Assistant.
 - **PaliGemma/**: PaliGemma replications.
@@ -40,7 +39,7 @@ If you're looking for fine-tuning and post-training runs, those live in [`../Pos
 ## Recurrent and sequence models
 
 - **GRU/**: Gated Recurrent Units.
-- **LSTM/**: Long Short-Term Memory models.
+- **lstm/**: Long Short-Term Memory models.
 - **RNNs/**: Recurrent Neural Networks.
 - **Seq2Seq/**: Sequence-to-sequence models.
 
