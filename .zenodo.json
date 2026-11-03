@@ -1,5 +1,5 @@
 {
-  "title": "Paper Replications and Experiments: From-Scratch PyTorch Implementations of Classic and SOTA AI/ML Papers",
+  "title": "Paper Replications and Experiments",
   "description": "<p><strong>Paper Replications and Experiments</strong> is a collection of from-scratch PyTorch implementations replicating classic and state-of-the-art AI/ML papers, plus post-training experiments on top of them: transformer variants, attention mechanisms, GANs, diffusion models, CLIP-style vision-language models, LoRA and MoE fine-tuning, SFT and GRPO runs, and more.</p>\n<p>Paper code and notebooks are licenced under Apache-2.0. Documentation, diagrams, generated results and published experiment artifacts are licensed under CC BY 4.0.</p>",
   "creators": [
     {

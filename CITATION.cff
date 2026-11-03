@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: If you use Paper Replications and Experiments (implementations, notebooks, or results), please cite it as below.
-title: "Paper Replications and Experiments: From-Scratch PyTorch Implementations of Classic and SOTA AI/ML Papers"
+title: "Paper Replications and Experiments"
 type: software
 authors:
   - family-names: Singh
@@ -25,7 +25,7 @@ keywords:
   - grpo
 preferred-citation:
   type: generic
-  title: "Paper Replications and Experiments: From-Scratch PyTorch Implementations of Classic and SOTA AI/ML Papers"
+  title: "Paper Replications and Experiments"
   authors:
     - family-names: Singh
       given-names: Yuvraj

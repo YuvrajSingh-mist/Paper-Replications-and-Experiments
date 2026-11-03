@@ -1,6 +1,6 @@
 <div align="center">
 
-# Paper-Replications-and-Experiments
+# Paper Replications and Experiments
 
 **From-scratch PyTorch replications of classic and SOTA AI/ML papers, plus my own post-training experiments**
 
@@ -55,7 +55,7 @@ If you find this repository useful in your research, please cite it:
 
 ```bibtex
 @software{singh_paper_replications_2025,
-  title     = {Paper Replications and Experiments: From-Scratch PyTorch Implementations of Classic and SOTA AI/ML Papers},
+  title     = {Paper Replications and Experiments},
   author    = {Singh, Yuvraj},
   year      = {2026},
   publisher = {Zenodo},
