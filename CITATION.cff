@@ -7,7 +7,6 @@ authors:
     given-names: Yuvraj
     orcid: "https://orcid.org/0009-0005-4120-555X"
 date-released: "2026-10-07"
-year: 2026
 url: "https://github.com/YuvrajSingh-mist/Paper-Replications-and-Experiments"
 repository-code: "https://github.com/YuvrajSingh-mist/Paper-Replications-and-Experiments"
 license: Apache-2.0
@@ -29,6 +28,9 @@ preferred-citation:
   authors:
     - family-names: Singh
       given-names: Yuvraj
+      orcid: "https://orcid.org/0009-0005-4120-555X"
   year: 2026
+  publisher:
+    name: Zenodo
+  doi: "10.5281/zenodo.23198171"
   url: "https://github.com/YuvrajSingh-mist/Paper-Replications-and-Experiments"
-  howpublished: "\\url{https://github.com/YuvrajSingh-mist/Paper-Replications-and-Experiments}"

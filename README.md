@@ -54,7 +54,7 @@ Thank you everyone for their support and love for this project!
 If you find this repository useful in your research, please cite it:
 
 ```bibtex
-@software{singh_paper_replications_2025,
+@software{singh_paper_replications_2026,
   title     = {Paper Replications and Experiments},
   author    = {Singh, Yuvraj},
   year      = {2026},
