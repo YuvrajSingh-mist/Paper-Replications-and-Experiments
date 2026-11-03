@@ -21,3 +21,5 @@ __pycache__/
 wandb/
 outputs/
 checkpoints/
+logs/
+events.out.tfevents.*

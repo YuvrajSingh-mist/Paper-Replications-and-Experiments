@@ -8,69 +8,29 @@
 
 </div>
 
-This repository contains a collection of code implementations and experiments replicating results from a wide range of influential machine learning and deep learning research papers. Each subfolder corresponds to a specific paper, model, or technique, with code, notes, and sometimes pretrained weights or results.
+I build models from the papers, then train them. Every folder here is code I wrote and ran rather than a fork of someone else's, so the notes next to it record what actually happened: hyperparameters, datasets, final losses, and the parts where my numbers disagree with the paper's.
 
+The repository is split in two.
+
+## [Replications](Replications/)
+
+One folder per paper, reproduced from scratch: 37 of them, from Bahdanau attention and the original Transformer through BERT, GPT, Llama, Mixtral and DeepSeek V3, plus GANs, VAEs, CLIP-style vision-language models and Whisper. Each folder is self-contained with a README listing the hyperparameters and results.
+
+[Browse the replications →](Replications/README.md)
+
+## [Post-Training](Post-Training/)
+
+Fine-tuning and post-training work: SFT and GRPO recipes, preference optimisation, and my own runs on my own data.
+
+[Browse the post-training experiments →](Post-Training/README.md)
 
 ## Deployed models
 
 Visit [smolhub](https://smolhub.com) to view the deployed models.
 
-
-## Structure
-
-Two top-level folders:
-
-- **`Replications/`**: one folder per paper, model or technique, reproduced from scratch.
-- **`Post-Training/`**: fine-tuning and post-training runs (SFT, GRPO, preference optimisation). Recipes plus my own experiments.
-
-### Replications/
-
-- **Attention Mechanisms/**: Implementations and experiments with various attention mechanisms.
-- **BERT/**: Replication and exploration of the BERT model.
-- **CGANs/**: Conditional Generative Adversarial Networks.
-- **CLAP/**: Contrastive Language-Audio Pretraining.
-- **CLiP/**: CLIP and related vision-language models.
-- **CycleGANs/**: Cycle-consistent GANs for image translation.
-- **DCGANs/**: Deep Convolutional GANs.
-- **DDP/**: Distributed Data Parallel training experiments.
-- **DeepSeekV3/**: DeepSeek model replications and experiments.
-- **Differential Transformer/**: Differential Transformer architectures.
-- **DPO/**: Direct Preference Optimization and related RLHF methods.
-- **Encoder-Decoder/**: Encoder-decoder architectures for sequence modeling.
-- **Gemma/**, **Gemma3/**: Replications of Gemma models.
-- **GPT/**: Generative Pretrained Transformer models.
-- **GRU/**: Gated Recurrent Unit models.
-- **Kimi-K2/**: Kimi-K2 model replications and training scripts.
-- **Llama/**, **Llama4/**: Llama model replications and experiments.
-- **Llava/**: Large Language and Vision Assistant models.
-- **LoRA/**: Low-Rank Adaptation for efficient fine-tuning.
-- **LSTM/**: Long Short-Term Memory models.
-- **Mixtral/**: Mixture-of-Experts Transformer models.
-- **Moonshine/**: Moonshine model experiments.
-- **ORPO/**: Online RLHF Preference Optimization.
-- **PaliGemma/**: PaliGemma model replications.
-- **Pix2Pix/**: Image-to-image translation with Pix2Pix.
-- **RNNs/**: Recurrent Neural Networks.
-- **Seq2Seq/**: Sequence-to-sequence models.
-- **SigLip/**: Sigmoid Loss for Language-Image Pretraining.
-- **SimplePO/**: Simple Preference Optimization.
-- **Transformer/**: Transformer model replications and variants.
-- **TTS/**: Text-to-Speech models.
-- **VAE/**: Variational Autoencoders.
-- **ViT/**: Vision Transformer models.
-- **WGANs/**: Wasserstein GANs.
-- **Whisper/**: Whisper speech recognition model replications.
-
-### Post-Training/
-
-- **sft/**: supervised fine-tuning recipes.
-- **grpo/**: GRPO and RL-style post-training recipes.
-- **runs/**: my own experiments on my own data. Not paper reproductions.
-
-
 ## Usage
 
-Each folder is self-contained and includes code, scripts, and sometimes notebooks for replicating the results of the corresponding paper. Please refer to the README or notes within each subfolder for specific instructions.
+Every folder stands alone. Open its README for the hyperparameters and results, then run the notebook or script inside. Datasets marked as local are not committed; the folder README names the source.
 
 ## Contributing
 
@@ -83,8 +43,7 @@ Thank you everyone for their support and love for this project!
 - [Itz-Antaripa](https://github.com/Itz-Antaripa)
 
 ### 🔗 Links
-[HuggingFace Account](https://huggingface.co/YuvrajSingh9886)
-
+[HuggingFace Account](https://huggingface.co/YuvrajSingh9886) · [Website](https://yuvrajsingh.io)
 
 ### Authors
 
