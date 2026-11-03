@@ -30,7 +30,6 @@ Visit [smolhub](https://smolhub.com) to view the deployed models.
 - **Differential Transformer/**: Differential Transformer architectures.
 - **DPO/**: Direct Preference Optimization and related RLHF methods.
 - **Encoder-Decoder/**: Encoder-decoder architectures for sequence modeling.
-- **Fine Tuning using PEFT/**: Parameter-Efficient Fine-Tuning methods.
 - **Gemma/**, **Gemma3/**: Replications of Gemma models.
 - **GPT/**: Generative Pretrained Transformer models.
 - **GRU/**: Gated Recurrent Unit models.
