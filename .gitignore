@@ -1,4 +1,23 @@
 .env
 Errror_Gihtub_Login.txt
 CGANs/output_images
-CycleGANs/output_images_valLlama4/llama4.ipynb
+CycleGANs/output_images_val
+Llama4/llama4.ipynb
+
+# Python / Jupyter
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+*.egg-info/
+.DS_Store
+
+# Experiment artifacts: weights, adapters, checkpoints, run logs.
+# These are large and regenerable - never commit them.
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.ckpt
+wandb/
+outputs/
+checkpoints/

@@ -44,6 +44,7 @@ Visit [smolhub](https://smolhub.com) to view the deployed models.
 - **ORPO/**: Online RLHF Preference Optimization.
 - **PaliGemma/**: PaliGemma model replications.
 - **Pix2Pix/**: Image-to-image translation with Pix2Pix.
+- **Post-Training/**: SFT, GRPO and post-training runs. Replication-style recipes plus my own experiments.
 - **RNNs/**: Recurrent Neural Networks.
 - **Seq2Seq/**: Sequence-to-sequence models.
 - **SigLip/**: Sigmoid Loss for Language-Image Pretraining.
