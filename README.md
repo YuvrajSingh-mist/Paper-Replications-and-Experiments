@@ -91,7 +91,7 @@ If you find this repository useful in your research, please cite it:
 }
 ```
 
-`10.5281/zenodo.23198171` is the concept DOI: it always resolves to the latest archived version. The v1.0.0 snapshot is pinned at [`10.5281/zenodo.23198172`](https://doi.org/10.5281/zenodo.23198172).
+`10.5281/zenodo.23198171` is the concept DOI: it always resolves to the newest archived version. This release, **v1.1.0** (SmolHub merged in), is pinned at [`10.5281/zenodo.23929573`](https://doi.org/10.5281/zenodo.23929573); the first release, v1.0.0, stays at [`10.5281/zenodo.23198172`](https://doi.org/10.5281/zenodo.23198172).
 
 ## License
 

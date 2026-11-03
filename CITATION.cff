@@ -6,7 +6,8 @@ authors:
   - family-names: Singh
     given-names: Yuvraj
     orcid: "https://orcid.org/0009-0005-4120-555X"
-date-released: "2026-10-07"
+date-released: "2026-11-04"
+version: "v1.1.0"
 url: "https://github.com/YuvrajSingh-mist/Paper-Replications-and-Experiments"
 repository-code: "https://github.com/YuvrajSingh-mist/Paper-Replications-and-Experiments"
 license: Apache-2.0
