@@ -18,7 +18,6 @@ The following images show the comparison between original CelebA face images (to
 > - `data/image.png` - Reconstruction comparison results
 > - `data/losses.jpg` - Training loss curves  
 > - `data/arithmetic.jpg` - Latent space visualizations
-> - `data/samples.jpg` - Generated sample faces from latent space
 
 *VAE: Original (top) vs Reconstructed (bottom) - Shows the model's ability to reconstruct high-resolution face images from the latent space representation.*
 
@@ -44,13 +43,7 @@ The following images show the comparison between original CelebA face images (to
 
 ### Generated Samples
 
-<!-- Main image reference -->
-<img src="data/samples.jpg" alt="Generated Samples" width="800"/>
-
-<!-- Fallback reference -->
-![Generated Samples](./data/samples.jpg)
-
-*Random samples generated from the latent space showing the diversity and quality of faces that the VAE can produce.*
+Sample grids from the latent space were produced during training but are not committed here; generate them by running the notebook's sampling cell.
 
 ## Model Hyperparameters
 
@@ -134,7 +127,6 @@ The following images show the comparison between original CelebA face images (to
 - `data/image.png` - Sample reconstruction results visualization
 - `data/losses.jpg` - Training loss curves and convergence plots  
 - `data/arithmetic.jpg` - Latent space interpolation and arithmetic examples
-- `data/samples.jpg` - Generated sample faces from latent space
 
 > **Image Loading Issues?** 
 > If images don't display in your markdown viewer:
