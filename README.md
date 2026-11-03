@@ -2,7 +2,7 @@
 
 # Paper Replications and Experiments
 
-**From-scratch PyTorch replications of classic and SOTA AI/ML papers, plus my own post-training experiments**
+**From-scratch PyTorch replications of classic and SOTA AI/ML papers, small language models trained end to end, and post-training experiments**
 
 [![license: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE) [![dataset: CC BY 4.0](https://img.shields.io/badge/dataset-CC_BY_4.0-lightgrey)](LICENSE-DATASET) [![Sponsor: GitHub](https://img.shields.io/badge/Sponsor-GitHub-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/YuvrajSingh-mist) [![Buy me a coffee](https://img.shields.io/badge/Buy_me_a_coffee-FFDD00?logo=buymeacoffee&logoColor=black)](https://ko-fi.com/O7W120DR8R)
 
@@ -10,33 +10,54 @@
 
 I build models from the papers, then train them. Every folder here is code I wrote and ran rather than a fork of someone else's, so the notes next to it record what actually happened: hyperparameters, datasets, final losses, and the parts where my numbers disagree with the paper's.
 
-The repository is split in three.
+## What's in here
 
-## [Replications](Replications/)
+| Folder | Contents |
+|--------|----------|
+| [`Replications/`](Replications/) | **37** papers reimplemented from scratch, each self-contained with a README of hyperparameters and results |
+| [`SmolHub/`](SmolHub/) | **6** original small language models, 88M–200M parameters, with full training pipelines and HF Space deployments |
+| [`Post-Training/`](Post-Training/) | SFT and GRPO recipes, preference optimisation, plus my own runs on my own data |
 
-One folder per paper, reproduced from scratch: 37 of them, from Bahdanau attention and the original Transformer through BERT, GPT, Llama, Mixtral and DeepSeek V3, plus GANs, VAEs, CLIP-style vision-language models and Whisper. Each folder is self-contained with a README listing the hyperparameters and results.
+### [Replications](Replications/)
+
+One folder per paper, from Bahdanau attention and the original Transformer through BERT, GPT, Llama, Mixtral and DeepSeek V3, plus GANs, VAEs, CLIP-style vision-language models and Whisper.
 
 [Browse the replications →](Replications/README.md)
 
-## [Post-Training](Post-Training/)
+### [SmolHub](SmolHub/)
 
-Fine-tuning and post-training work: SFT and GRPO recipes, preference optimisation, and my own runs on my own data.
+Small models built and trained end to end on hardware you can rent by the hour:
 
-[Browse the post-training experiments →](Post-Training/README.md)
+| Model | Params | Architecture | Dataset |
+|-------|--------|--------------|---------|
+| [SmolLlama](SmolHub/SmolLlama/) | ~88M | Llama-style, RoPE + GQA | TinyStories |
+| [SmolMixtral](SmolHub/SmolMixtral/) | ~124M | Mixture of Experts, 8 experts | TinyStories |
+| [SmolTransformer](SmolHub/SmolTransformer/) | ~150M | Classic transformer + RMSNorm | FineWeb |
+| [StoryLlama](SmolHub/StoryLlama/) | ~88M | Llama variant, story-tuned | TinyStories |
+| [StoryMixtral](SmolHub/StoryMixtral/) | ~200M | Mixtral variant | Story corpus |
+| [StoryKimi](SmolHub/StoryKimi/) | ~180M | DeepSeek V3-inspired MLA + MoE | Story corpus |
 
-## [SmolHub](SmolHub/)
-
-Small language models built and trained end to end, 88M to 200M parameters: SmolLlama, SmolMixtral, SmolTransformer and the Story models. These are original architectures rather than reproductions, and the directory carries the full training pipelines plus the HuggingFace Space deployments.
+These are original architectures rather than reproductions. Learned weights live on the Hub — for example [StoryKimi](https://huggingface.co/YuvrajSingh9886/StoryKimi) and [SmolMixtral](https://huggingface.co/YuvrajSingh9886/SmolMixtral) — and the deployable Spaces are under [Spaces](https://huggingface.co/YuvrajSingh9886).
 
 [Browse the small models →](SmolHub/README.md)
 
+### [Post-Training](Post-Training/)
+
+Fine-tuning and post-training work, kept separate from the paper reproductions so the two don't get confused:
+
+- `sft/` — supervised fine-tuning recipes
+- `grpo/` — GRPO and RL-style post-training recipes
+- `runs/` — my own experiments on my own data, not reproductions of anyone's results
+
+[Browse the post-training experiments →](Post-Training/README.md)
+
 ## Deployed models
 
-Visit [smolhub](https://smolhub.com) to view the deployed models.
+[smolhub.com](https://smolhub.com) hosts the deployed models, and the Spaces themselves live on the [HuggingFace account](https://huggingface.co/YuvrajSingh9886).
 
 ## Usage
 
-Every folder stands alone. Open its README for the hyperparameters and results, then run the notebook or script inside. Datasets marked as local are not committed; the folder README names the source.
+Every folder stands alone. Open its README for the hyperparameters and results, then run the notebook or script inside. Datasets marked as local are not committed; the folder README names the source. Weights and checkpoints are never committed — see `.gitignore`.
 
 ## Contributing
 
@@ -49,7 +70,7 @@ Thank you everyone for their support and love for this project!
 - [Itz-Antaripa](https://github.com/Itz-Antaripa)
 
 ### 🔗 Links
-[HuggingFace Account](https://huggingface.co/YuvrajSingh9886) · [Website](https://yuvrajsingh.io)
+[HuggingFace](https://huggingface.co/YuvrajSingh9886) · [Website](https://yuvrajsingh.io) · [Deployed models](https://smolhub.com)
 
 ### Authors
 
@@ -70,9 +91,11 @@ If you find this repository useful in your research, please cite it:
 }
 ```
 
+`10.5281/zenodo.23198171` is the concept DOI: it always resolves to the latest archived version. The v1.0.0 snapshot is pinned at [`10.5281/zenodo.23198172`](https://doi.org/10.5281/zenodo.23198172).
+
 ## License
 
 - **Code and notebooks**: [Apache License 2.0](LICENSE).
 - **Documentation, diagrams, generated results and published artifacts**: [CC BY 4.0](LICENSE-DATASET).
 
-Attribution: Yuvraj Singh. See [NOTICE](NOTICE) and [CITATION.cff](CITATION.cff).
+Attribution: Yuvraj Singh. See [NOTICE](NOTICE) and [CITATION.cff](CITATION.cff). `SmolHub/` was merged in from a separate repository that declared MIT but shipped no licence file; it is distributed here under Apache-2.0.
