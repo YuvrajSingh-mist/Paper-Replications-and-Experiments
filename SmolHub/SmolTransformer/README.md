@@ -1,5 +1,13 @@
 # SmolTransformer
 
+<!-- hf-artifacts:begin -->
+
+**Weights:** [SmolTransformer](https://huggingface.co/YuvrajSingh9886/SmolTransformer)  
+**Live demo:** [SmolTransformer-Zero](https://huggingface.co/spaces/YuvrajSingh9886/SmolTransformer-Zero)  
+**Source:** [`SmolHub/`](https://github.com/YuvrajSingh-mist/Paper-Replications-and-Experiments/tree/master/SmolHub)
+
+<!-- hf-artifacts:end -->
+
 A compact implementation of an Encoder-Decoder Transformer for sequence-to-sequence translation tasks. This project implements a translation model from English to Hindi using the Samanantar dataset.
 
 ## Features

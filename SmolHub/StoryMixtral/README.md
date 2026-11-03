@@ -1,6 +1,14 @@
 
 # StoryMixtral - Mixtral Inspired Model
 
+<!-- hf-artifacts:begin -->
+
+**Weights:** [StoryMixtral](https://huggingface.co/YuvrajSingh9886/StoryMixtral)  
+**Live demo:** [StoryMixtral-Zero](https://huggingface.co/spaces/YuvrajSingh9886/StoryMixtral-Zero)  
+**Source:** [`SmolHub/`](https://github.com/YuvrajSingh-mist/Paper-Replications-and-Experiments/tree/master/SmolHub)
+
+<!-- hf-artifacts:end -->
+
 A PyTorch implementation of a Mixtral inspired transformer model with Mixture of Experts (MoE), Flash Attention, and other advanced features.
 
 ## Examples

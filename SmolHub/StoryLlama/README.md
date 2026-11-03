@@ -1,6 +1,14 @@
 
 # Introducing StoryLlama - A Smaller Language Model for Bedtime Stories! 
 
+<!-- hf-artifacts:begin -->
+
+**Weights:** [StoryLlama](https://huggingface.co/YuvrajSingh9886/StoryLlama)  
+**Live demo:** [StoryLlama](https://huggingface.co/spaces/YuvrajSingh9886/StoryLlama) · [StoryLlama-Zero](https://huggingface.co/spaces/YuvrajSingh9886/StoryLlama-Zero)  
+**Source:** [`SmolHub/`](https://github.com/YuvrajSingh-mist/Paper-Replications-and-Experiments/tree/master/SmolHub)
+
+<!-- hf-artifacts:end -->
+
 - So, I trained a Llama a 88M architecture I coded from ground up to build a small instruct model, going through the below-mentioned stages from scratch.
 - Trained on TiyStories dataset form HuggingFace consisting of 4B tokens for a total of 5000 steps
 

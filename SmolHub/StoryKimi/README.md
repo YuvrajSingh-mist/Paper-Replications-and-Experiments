@@ -1,5 +1,13 @@
 # StoryKimi - DeepSeek V3 Inspired Model
 
+<!-- hf-artifacts:begin -->
+
+**Weights:** [StoryKimi](https://huggingface.co/YuvrajSingh9886/StoryKimi)  
+**Live demo:** [StoryKimi-Zero](https://huggingface.co/spaces/YuvrajSingh9886/StoryKimi-Zero)  
+**Source:** [`SmolHub/`](https://github.com/YuvrajSingh-mist/Paper-Replications-and-Experiments/tree/master/SmolHub)
+
+<!-- hf-artifacts:end -->
+
 A PyTorch implementation of a DeepSeek V3 inspired transformer model with Mixture of Experts (MoE), Latent Attention, and other advanced features.
 
 ![StoryKimi Model](images/image.png)

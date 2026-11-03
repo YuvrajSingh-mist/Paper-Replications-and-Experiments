@@ -20,11 +20,33 @@ SmolHub is a collection of **small but mighty language models** implemented enti
 
 | Model | Parameters | Architecture | Key Features | Training Dataset |
 |-------|------------|--------------|-------------|------------------|
+| **SmolLlama** | ~130M | Llama-inspired, instruct-tuned | FineWeb → SFT → DPO pipeline | FineWeb 10BT |
 | **SmolMixtral** | ~124M (8x12M) | Mixture of Experts | Sparse activation, Flash Attention, SwiGLU | TinyStories (1M texts, 14K steps) |
 | **SmolTransformer** | ~150M | Standard Transformer | Classic attention mechanism, RMSNorm | FineWeb |
 | **StoryLlama** | ~88M | Llama-inspired | RoPE, SwiGLU, MQA/GQA, RMSNorm | TinyStories (4B tokens, 5K steps) |
 | **StoryMixtral** | ~200M | Mixtral variant | Story-focused MoE training | Custom story dataset |
 | **StoryKimi** | ~180M | Custom architecture | Optimized for narrative generation | Story corpus |
+
+### 🏷️ Weights and demos on Hugging Face
+
+Each model's trained weights and its live demo live on the Hugging Face Hub.
+`-Zero` Spaces are the ZeroGPU variants.
+
+| Model | Weights | Space |
+|-------|---------|-------|
+| **SmolLlama** | — | [SmolLlama](https://huggingface.co/spaces/YuvrajSingh9886/SmolLlama) · [SmolLlama-Zero](https://huggingface.co/spaces/YuvrajSingh9886/SmolLlama-Zero) |
+| **SmolMixtral** | [SmolMixtral](https://huggingface.co/YuvrajSingh9886/SmolMixtral) | [SmolMixtral-Zero](https://huggingface.co/spaces/YuvrajSingh9886/SmolMixtral-Zero) |
+| **SmolTransformer** | [SmolTransformer](https://huggingface.co/YuvrajSingh9886/SmolTransformer) | [SmolTransformer-Zero](https://huggingface.co/spaces/YuvrajSingh9886/SmolTransformer-Zero) |
+| **StoryLlama** | [StoryLlama](https://huggingface.co/YuvrajSingh9886/StoryLlama) | [StoryLlama](https://huggingface.co/spaces/YuvrajSingh9886/StoryLlama) · [StoryLlama-Zero](https://huggingface.co/spaces/YuvrajSingh9886/StoryLlama-Zero) |
+| **StoryMixtral** | [StoryMixtral](https://huggingface.co/YuvrajSingh9886/StoryMixtral) | [StoryMixtral-Zero](https://huggingface.co/spaces/YuvrajSingh9886/StoryMixtral-Zero) |
+| **StoryKimi** | [StoryKimi](https://huggingface.co/YuvrajSingh9886/StoryKimi) | [StoryKimi-Zero](https://huggingface.co/spaces/YuvrajSingh9886/StoryKimi-Zero) |
+
+## 📦 Citation
+
+This directory is archived with the rest of the repository as
+**Paper Replications and Experiments**
+([concept DOI](https://doi.org/10.5281/zenodo.23198171)). Cite that record if you
+use the models, the pipelines or the architectures here.
 
 ### 🔧 Key Components Implemented
 
