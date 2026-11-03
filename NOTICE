@@ -3,6 +3,11 @@ Copyright 2026 Yuvraj Singh
 
 This product includes software developed by Yuvraj Singh.
 
+The SmolHub/ directory was merged in from a separate repository that
+described itself as MIT licensed but carried no LICENSE file. It is
+distributed here under the same Apache-2.0 terms as the rest of the
+code; the original MIT grant, if any, is unaffected for prior copies.
+
 Third-party components, where present, remain under their own licenses; see the
 individual paper folders for upstream attribution and license notes.
 

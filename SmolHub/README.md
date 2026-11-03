@@ -2,9 +2,13 @@
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](../LICENSE)
 
 > *Building powerful small language models (100-300M parameters) completely from scratch!*
+
+> **Note:** this was its own repository until it was merged in here. Clone
+> `Paper-Replications-and-Experiments` and work inside `SmolHub/`; the old
+> `SmolHub` repo is archived and no longer updated.
 
 ## 🎯 Overview
 
@@ -197,7 +201,8 @@ Please feel free to open issues and pull requests.
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache License 2.0, like the rest of this
+repository - see the [LICENSE](../LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 

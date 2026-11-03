@@ -10,7 +10,7 @@
 
 I build models from the papers, then train them. Every folder here is code I wrote and ran rather than a fork of someone else's, so the notes next to it record what actually happened: hyperparameters, datasets, final losses, and the parts where my numbers disagree with the paper's.
 
-The repository is split in two.
+The repository is split in three.
 
 ## [Replications](Replications/)
 
@@ -23,6 +23,12 @@ One folder per paper, reproduced from scratch: 37 of them, from Bahdanau attenti
 Fine-tuning and post-training work: SFT and GRPO recipes, preference optimisation, and my own runs on my own data.
 
 [Browse the post-training experiments →](Post-Training/README.md)
+
+## [SmolHub](SmolHub/)
+
+Small language models built and trained end to end, 88M to 200M parameters: SmolLlama, SmolMixtral, SmolTransformer and the Story models. These are original architectures rather than reproductions, and the directory carries the full training pipelines plus the HuggingFace Space deployments.
+
+[Browse the small models →](SmolHub/README.md)
 
 ## Deployed models
 
