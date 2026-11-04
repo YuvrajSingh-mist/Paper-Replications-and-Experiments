@@ -1066,7 +1066,7 @@ min_lr = 3e-6
 lr_decay_iters = 20000
 total_batch_size = 32768
 micro_batch_size = batch_size
-gradient_accumulation_steps = total_batch_size // (micro_batch_size * (block_size * torch.cuda.device_count()))
+gradient_accumulation_steps = total_batch_size // (micro_batch_size * (block_size * max(1, torch.cuda.device_count())))
 
 
 def get_lr(it):
