@@ -40,4 +40,9 @@ class ModelArgs:
     lr_decay_iters: int = 20000
     total_batch_size: int = 524288
     micro_batch_size: int = batch_size
-    gradient_accumulation_steps: int = total_batch_size // (micro_batch_size * (block_size * torch.cuda.device_count()))
+    # max(1, ...) so this is defined on a machine with no visible CUDA device.
+    # Without it, importing this module on CPU raises ZeroDivisionError while the
+    # class body is being evaluated, before any of our code runs.
+    gradient_accumulation_steps: int = total_batch_size // (
+        micro_batch_size * (block_size * max(1, torch.cuda.device_count()))
+    )

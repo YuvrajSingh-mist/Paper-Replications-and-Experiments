@@ -7,22 +7,46 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 
 from datasets import load_dataset
 from torch.utils.data import DataLoader
-from tokenizer import Tokenizer
 from config import ModelArgs
-
-
-tokenizer = Tokenizer().ready_tokenizer()
-
+from tokenizer import Tokenizer
 
 import argparse
 
 # Dataset selection flags. The __main__ block below overrides these from CLI
-# arguments; code that imports prepare_dataset() is responsible for loading a
-# dataset first, which is enforced by the guard inside it.
-tinystories = False
-fw = True
+# arguments. Defaults match SmolMixtral/data.py: TinyStories, because it is
+# small enough to actually download and train on.
+tinystories = True
+fw = False
+dpo = False
 train_dataset = None
 val_dataset = None
+
+_tokenizer = None
+
+
+def get_tokenizer():
+    """Build the tokenizer on first use.
+
+    This used to run at module scope. Importing the module therefore performed a
+    network request, which made the trainers unimportable offline and meant any
+    import (including a test or a linter) needed Hub access.
+    """
+    global _tokenizer
+    if _tokenizer is None:
+        _tokenizer = Tokenizer().ready_tokenizer()
+        _tokenizer.add_special_tokens({"pad_token": "[PAD]"})
+    return _tokenizer
+
+
+def _ensure_datasets(use_dpo=False):
+    """Load the dataset on first use, so importing this module has no side effects."""
+    global train_dataset, val_dataset
+    if train_dataset is None or val_dataset is None:
+        if use_dpo:
+            train_dataset, val_dataset = load_selected_dataset(False, False, True)
+        else:
+            train_dataset, val_dataset = load_selected_dataset(tinystories, fw, dpo)
+    return train_dataset, val_dataset
 
 
 def load_selected_dataset(tinystories, fw, dpo):
@@ -47,23 +71,17 @@ def load_selected_dataset(tinystories, fw, dpo):
 # train_dataset, val_dataset = load_selected_dataset(tinystories, fw, dpo)
 
 
-tokenizer.add_special_tokens({'pad_token': '[PAD]'})
-
-
 def tokenize_function(examples):
-    return tokenizer(
-        examples['text'], max_length=ModelArgs.block_size, padding='max_length', truncation=True, return_tensors='pt'
+    return get_tokenizer()(
+        examples["text"], max_length=ModelArgs.block_size, padding="max_length", truncation=True, return_tensors="pt"
     )
 
 
 def prepare_dataset(split, device, batch_size):
     print("Device is: ", device)
 
-    if train_dataset is None or val_dataset is None:
-        raise RuntimeError(
-            "No dataset loaded: call load_selected_dataset() and assign "
-            "train_dataset/val_dataset before prepare_dataset()."
-        )
+    train_dataset, val_dataset = _ensure_datasets()
+    tokenizer = get_tokenizer()
 
     def collate_fn(batch):
         # Extract text data
@@ -126,11 +144,8 @@ def prepare_dataset(split, device, batch_size):
 
 def prepare_dataset_dpo(split, device, batch_size):
 
-    if train_dataset is None or val_dataset is None:
-        raise RuntimeError(
-            "No dataset loaded: call load_selected_dataset() and assign "
-            "train_dataset/val_dataset before prepare_dataset_dpo()."
-        )
+    train_dataset, val_dataset = _ensure_datasets(use_dpo=True)
+    tokenizer = get_tokenizer()
 
     def collate_fn(batch):
         # Extract text data
