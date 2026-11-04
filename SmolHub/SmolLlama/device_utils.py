@@ -1,23 +1,35 @@
-"""Device, dtype and launch helpers.
+"""Device and launch helpers.
 
-This module exists so the same scripts can run on CUDA, on Apple Silicon (MPS),
-and on CPU. It is deliberately additive: every function returns exactly what the
-code used to return when CUDA is available, so an existing CUDA run behaves
-identically.
+One rule decides everything here:
 
-The old code hardcoded three things that do not exist on a Mac:
+    CUDA  -> distributed training, exactly as this repository has always done it.
+    MPS   -> one device, one process. No process group, no DDP, no collectives.
+    CPU   -> same as MPS.
 
-  device = 'cuda'             -- no CUDA on Apple Silicon
-  init_process_group('nccl')  -- NCCL is only built with CUDA support
-  torch.cuda.set_device(rank) -- CUDA-only API
+MPS is deliberately *not* wired into the distributed machinery. Stock PyTorch
+ships no distributed backend for MPS, and these trainers are meant to run on a
+single Apple GPU, so on MPS the code takes the plain single-process path instead
+of pretending to be rank 0 of a one-rank world.
 
-Each has a replacement here that resolves the right value at runtime.
+On a CUDA machine every helper below returns what the original hardcoded code
+returned, so an existing multi-GPU run is unaffected:
+
+    device = 'cuda'                  -> train_device()      -> LOCAL_RANK (int)
+    init_process_group('nccl')       -> setup_process_group() -> 'nccl'
+    torch.cuda.set_device(rank)      -> select_device()      -> set_device(rank)
+    DDP(model, device_ids=[rank])    -> wrap_ddp()           -> same DDP wrap
+    DistributedSampler(ds)           -> distributed_sampler()-> same sampler
+    torch.cuda.device_count()        -> world_size()         -> device_count()
 """
 
 import importlib.util
 import os
 
 import torch
+
+# --------------------------------------------------------------------------
+# Hardware detection
+# --------------------------------------------------------------------------
 
 
 def cuda_available():
@@ -52,63 +64,65 @@ def default_dtype():
     return "float32"
 
 
-def is_launched_distributed():
-    """True when torchrun (or equivalent) launched this process."""
-    return "RANK" in os.environ and "LOCAL_RANK" in os.environ
+def is_cuda(device=None):
+    """True when this run should use the CUDA/distributed path."""
+    device = device or default_device()
+    return str(device).startswith("cuda")
 
 
-def world_size():
-    """Number of processes, or 1 for a plain `python trainer.py` run."""
-    return int(os.environ.get("WORLD_SIZE", "1"))
+# --------------------------------------------------------------------------
+# Launch topology
+# --------------------------------------------------------------------------
 
 
 def local_rank():
     return int(os.environ.get("LOCAL_RANK", "0"))
 
 
-def is_distributed():
-    """True when more than one process is participating."""
-    return torch.distributed.is_available() and torch.distributed.is_initialized() and world_size() > 1
+def distributed_world_size(device=None):
+    """Number of cooperating processes.
+
+    CUDA keeps `torch.cuda.device_count()`, matching the original code, so the
+    loss averaging in the training loops divides by the same number as before.
+    MPS and CPU are single-process by definition.
+    """
+    if not is_cuda(device):
+        return 1
+    return torch.cuda.device_count() or 1
+
+
+def is_distributed(device=None):
+    """True only when a real multi-process CUDA job is running."""
+    if not is_cuda(device) or distributed_world_size(device) <= 1:
+        return False
+    return torch.distributed.is_available() and torch.distributed.is_initialized()
 
 
 def setup_process_group(device=None):
-    """Initialise the process group.
+    """Initialise the process group on CUDA; do nothing anywhere else.
 
-    CUDA: `nccl`, exactly as before, initialised unconditionally.
+    CUDA: `nccl`, initialised unconditionally, exactly as before.
 
-    MPS/CPU: stock PyTorch ships no distributed backend for MPS, and `nccl` is not
-    compiled into a macOS build at all. So this uses `gloo` and, when the script
-    was started with plain `python`, initialises a single-process group. That keeps
-    every `torch.distributed` call in the training loops working unchanged while
-    world size is 1.
+    MPS/CPU: returns immediately. There is no backend to initialise, and adding a
+    one-process gloo group would drag MPS into the distributed path for no
+    benefit. Nothing downstream calls a collective on these devices (see
+    `reduce_sum_to_main` and `distributed_sampler`).
     """
-    device = device or default_device()
-
-    if device.startswith("cuda"):
-        # Unchanged CUDA path.
-        torch.distributed.init_process_group("nccl")
+    if not is_cuda(device):
         return
-
-    # gloo has no rendezvous information for a plain python invocation.
-    os.environ.setdefault("MASTER_ADDR", "127.0.0.1")
-    os.environ.setdefault("MASTER_PORT", "29500")
-    os.environ.setdefault("RANK", "0")
-    os.environ.setdefault("LOCAL_RANK", "0")
-    os.environ.setdefault("WORLD_SIZE", "1")
-    torch.distributed.init_process_group("gloo")
+    torch.distributed.init_process_group("nccl")
 
 
 def train_device(device=None):
     """The device this process trains on.
 
     CUDA keeps returning the bare `LOCAL_RANK` integer, because that is what the
-    existing code does and every downstream `.to(rank)` and `device_ids=[rank]`
+    original code does and every downstream `.to(rank)` and `device_ids=[rank]`
     relies on it. MPS and CPU get a torch.device, which `.to()` also accepts.
     """
-    device = device or default_device()
-    if str(device).startswith("cuda"):
+    if is_cuda(device):
         return local_rank()
-    return torch.device(device)
+    return torch.device(device or default_device())
 
 
 def select_device(device=None):
@@ -117,44 +131,74 @@ def select_device(device=None):
     CUDA: sets the current device from LOCAL_RANK, exactly as before.
     MPS/CPU: nothing to select, so this is a no-op.
     """
-    device = device or default_device()
-    if str(device).startswith("cuda"):
+    if is_cuda(device):
         torch.cuda.set_device(local_rank())
 
 
-def distributed_world_size(device=None):
-    """World size for loss averaging.
+def is_main_process(device=None):
+    """True on rank 0.
 
-    CUDA keeps `torch.cuda.device_count()`, matching the original code. Elsewhere
-    the process group's world size is the only meaningful answer, and it is 1 for
-    a single-process run.
+    The trainers gate logging, wandb and checkpointing on `device == 0`, which
+    works only because `train_device()` returns the bare rank on CUDA. On MPS and
+    CPU the device is a torch.device, so that comparison is always False. This is
+    the equivalent check that holds on every backend.
     """
-    device = device or default_device()
-    if str(device).startswith("cuda"):
-        return torch.cuda.device_count() or 1
-    if torch.distributed.is_available() and torch.distributed.is_initialized():
-        return torch.distributed.get_world_size()
-    return 1
+    if is_cuda(device):
+        return local_rank() == 0
+    return True
+
+
+# --------------------------------------------------------------------------
+# Distributed wrappers (all no-ops off CUDA)
+# --------------------------------------------------------------------------
 
 
 def wrap_ddp(model, device=None):
-    """Wrap in DDP only when there is more than one process.
+    """Wrap in DDP on CUDA, return the model unchanged otherwise.
 
-    On CUDA with multiple GPUs this is the same DDP wrap as before, with the same
-    `device_ids`. Single-process runs skip DDP, which is what makes MPS work: DDP
-    over MPS has no stock backend.
+    On CUDA this is the same DDP wrap as before, with the same `device_ids`.
+    MPS has no DDP backend, so the model is used directly.
     """
-    device = device or default_device()
-    if is_distributed() and str(device).startswith("cuda"):
+    if is_cuda(device):
         return torch.nn.parallel.DistributedDataParallel(model, device_ids=[local_rank()])
-    if is_distributed():
-        return torch.nn.parallel.DistributedDataParallel(model)
     return model
 
 
 def unwrap(model):
     """The underlying module, whether or not it is DDP-wrapped."""
     return model.module if hasattr(model, "module") else model
+
+
+def distributed_sampler(dataset, shuffle=True, device=None):
+    """Partitioned sampler on CUDA, plain sampler otherwise.
+
+    `DistributedSampler` requires an initialised process group, which no longer
+    exists off CUDA. Returning `RandomSampler`/`SequentialSampler` keeps the
+    DataLoader call sites unchanged: they already pass `shuffle=False` alongside
+    an explicit sampler.
+    """
+    if is_cuda(device):
+        return torch.utils.data.distributed.DistributedSampler(dataset, shuffle=shuffle)
+    if shuffle:
+        return torch.utils.data.RandomSampler(dataset)
+    return torch.utils.data.SequentialSampler(dataset)
+
+
+def reduce_sum_to_main(tensor, dst=0, device=None):
+    """Sum `tensor` across processes onto `dst`.
+
+    A no-op off CUDA: with one process the reduction is the identity, and gloo
+    has no MPS kernel for `reduce_` at all. Multi-process CUDA keeps the original
+    collective.
+    """
+    if is_distributed(device):
+        torch.distributed.reduce(tensor, dst=dst, op=torch.distributed.ReduceOp.SUM)
+    return tensor
+
+
+# --------------------------------------------------------------------------
+# Precision and memory
+# --------------------------------------------------------------------------
 
 
 def autocast_context(device=None, dtype=torch.bfloat16):
@@ -166,23 +210,21 @@ def autocast_context(device=None, dtype=torch.bfloat16):
     """
     import contextlib
 
-    device = device or default_device()
-    if str(device).startswith("cuda"):
+    if is_cuda(device):
         return torch.autocast(device_type="cuda", dtype=dtype)
     return contextlib.nullcontext()
 
 
 def grad_scaler_enabled(device=None, dtype=None):
     """Gradient scaling is a CUDA float16 concern only."""
-    device = device or default_device()
     dtype = dtype or default_dtype()
-    return str(device).startswith("cuda") and str(dtype) == "float16"
+    return is_cuda(device) and str(dtype) == "float16"
 
 
 def synchronize(device=None):
     """Block until the current device's queued work finishes."""
     device = device or default_device()
-    if str(device).startswith("cuda"):
+    if is_cuda(device):
         torch.cuda.synchronize()
     elif str(device) == "mps":
         torch.mps.synchronize()
@@ -191,7 +233,7 @@ def synchronize(device=None):
 def empty_cache(device=None):
     """Release cached memory for the current device."""
     device = device or default_device()
-    if str(device).startswith("cuda"):
+    if is_cuda(device):
         torch.cuda.empty_cache()
     elif str(device) == "mps":
         torch.mps.empty_cache()
@@ -213,3 +255,13 @@ def liger_available():
         except (ImportError, ValueError):
             _LIGER_AVAILABLE = False
     return _LIGER_AVAILABLE
+
+
+def teardown_process_group():
+    """Destroy the process group if one exists.
+
+    CUDA: destroys it, as before. MPS/CPU: never initialised one, so destroying
+    would raise.
+    """
+    if torch.distributed.is_available() and torch.distributed.is_initialized():
+        torch.distributed.destroy_process_group()

@@ -15,47 +15,39 @@ from config import ModelArgs, get_args
 from model import DeepSeekV3
 from data import prepare_dataset, initialize_tokenizer
 from inference import topk_sampling, save_text
-from device_utils import autocast_context, default_device
+from device_utils import (
+    autocast_context,
+    cuda_available,
+    select_device,
+    setup_process_group,
+    teardown_process_group,
+)
 
 
 def setup_ddp():
-    """Initialize DDP setup"""
-    if torch.cuda.is_available():
-        # Unchanged CUDA path.
-        dist.init_process_group(backend='nccl')
+    """Initialize DDP setup.
 
-        # Get local rank from environment variable set by torchrun
-        local_rank = int(os.environ['LOCAL_RANK'])
-        world_size = int(os.environ['WORLD_SIZE'])
-        rank = int(os.environ['RANK'])
+    Only reached on CUDA: the caller gates `use_ddp` on `cuda_available()`, because
+    MPS runs on a single device and never initialises a process group.
+    """
+    setup_process_group()
+    select_device()
 
-        # Set device for this process
-        torch.cuda.set_device(local_rank)
-        device = torch.device(f'cuda:{local_rank}')
-
-        return local_rank, world_size, rank, device
-
-    # MPS/CPU: NCCL is not available, so rendezvous over gloo instead. torchrun
-    # supplies the env vars for a real multi-process run; a plain
-    # `python trainer.py --use_ddp` falls back to a single process.
-    os.environ.setdefault('MASTER_ADDR', '127.0.0.1')
-    os.environ.setdefault('MASTER_PORT', '29500')
-    os.environ.setdefault('RANK', '0')
-    os.environ.setdefault('LOCAL_RANK', '0')
-    os.environ.setdefault('WORLD_SIZE', '1')
-    dist.init_process_group(backend='gloo')
-
-    local_rank = int(os.environ['LOCAL_RANK'])
+    # Get local rank from environment variable set by torchrun
+    local_rank = os.environ['LOCAL_RANK']
+    worker_id = int(local_rank)
     world_size = int(os.environ['WORLD_SIZE'])
     rank = int(os.environ['RANK'])
 
-    return local_rank, world_size, rank, torch.device(default_device())
+    device = torch.device(f'cuda:{worker_id}')
+
+    return worker_id, world_size, rank, device
 
 
 def cleanup_ddp():
     """Clean up DDP"""
     if dist.is_initialized():
-        dist.destroy_process_group()
+        teardown_process_group()
 
 
 def get_lr(it, model_args):
@@ -90,7 +82,9 @@ def train():
     tokenizer = initialize_tokenizer(model_args.hf_token)
 
     # Initialize DDP if running with torchrun
-    use_ddp = 'RANK' in os.environ or model_args.use_ddp
+    # DDP is a CUDA-only path. MPS runs a single device and never initialises a
+    # process group, so torchrun-style variables are ignored there.
+    use_ddp = cuda_available() and ('RANK' in os.environ or model_args.use_ddp)
     if use_ddp:
         local_rank, world_size, rank, device = setup_ddp()
         print(f"Rank {rank}/{world_size} on device {device}")

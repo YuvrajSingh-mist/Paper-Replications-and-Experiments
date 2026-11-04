@@ -1,4 +1,4 @@
-from torch.utils.data.distributed import DistributedSampler
+from device_utils import distributed_sampler
 
 
 from datasets import load_dataset
@@ -101,7 +101,7 @@ def prepare_dataset(split, device, batch_size):
                 train_dataset,
                 # generator=generator,
                 batch_size=batch_size,
-                sampler=DistributedSampler(train_dataset, shuffle=True),
+                sampler=distributed_sampler(train_dataset, shuffle=True),
                 collate_fn=collate_fn,
                 drop_last=True,
                 shuffle=False,
@@ -110,7 +110,7 @@ def prepare_dataset(split, device, batch_size):
             data_loader = DataLoader(
                 val_dataset,
                 batch_size=batch_size,
-                sampler=DistributedSampler(val_dataset, shuffle=True),
+                sampler=distributed_sampler(val_dataset, shuffle=True),
                 collate_fn=collate_fn,
                 drop_last=True,
                 shuffle=False,
@@ -120,7 +120,7 @@ def prepare_dataset(split, device, batch_size):
             data_loader = DataLoader(
                 train_dataset,
                 batch_size=batch_size,
-                sampler=DistributedSampler(train_dataset, shuffle=True),
+                sampler=distributed_sampler(train_dataset, shuffle=True),
                 collate_fn=collate_fn,
                 drop_last=True,
                 shuffle=False,
@@ -130,7 +130,7 @@ def prepare_dataset(split, device, batch_size):
                 val_dataset,
                 batch_size=batch_size,
                 # generator=generator,
-                sampler=DistributedSampler(val_dataset, shuffle=True),
+                sampler=distributed_sampler(val_dataset, shuffle=True),
                 collate_fn=collate_fn,
                 drop_last=True,
                 shuffle=False,
@@ -209,7 +209,7 @@ def prepare_dataset_dpo(split, device, batch_size):
         data_loader = DataLoader(
             train_dataset,
             batch_size=batch_size,
-            sampler=DistributedSampler(train_dataset, shuffle=True),
+            sampler=distributed_sampler(train_dataset, shuffle=True),
             collate_fn=collate_fn,
             drop_last=True,
             shuffle=False,
@@ -218,7 +218,7 @@ def prepare_dataset_dpo(split, device, batch_size):
         data_loader = DataLoader(
             val_dataset,
             batch_size=batch_size,
-            sampler=DistributedSampler(val_dataset, shuffle=True),
+            sampler=distributed_sampler(val_dataset, shuffle=True),
             collate_fn=collate_fn,
             drop_last=True,
             shuffle=False,

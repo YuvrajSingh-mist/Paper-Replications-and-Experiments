@@ -2,8 +2,7 @@ import torch
 import torch.nn as nn
 import math
 import torch.optim as optim
-from torch.distributed import destroy_process_group
-from device_utils import distributed_world_size, setup_process_group, synchronize
+from device_utils import teardown_process_group, distributed_world_size, setup_process_group, synchronize
 import wandb
 from tqdm import tqdm
 
@@ -21,7 +20,7 @@ def setup(rank=None, world_size=None):
 
 
 def cleanup():
-    destroy_process_group()
+    teardown_process_group()
 
 
 def _save_snapshot(model, optimizer, scheduler, epoch, step):

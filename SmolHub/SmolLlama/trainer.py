@@ -2,8 +2,10 @@ import argparse
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.distributed import destroy_process_group
 from device_utils import (
+    teardown_process_group,
+    reduce_sum_to_main,
+    is_main_process,
     autocast_context,
     distributed_world_size,
     grad_scaler_enabled,
@@ -63,7 +65,7 @@ class Trainer:
         # torch.cuda.set_device(int(os.environ['LOCAL_RANK']))
 
     def cleanup(self):
-        destroy_process_group()
+        teardown_process_group()
 
     def _save_snapshot(self, model, optimizer, epoch, step, save_dir):
         snapshot = {}
@@ -185,7 +187,7 @@ class Trainer:
         # device_id = rank % torch.cuda.device_count()
         # CFG = ModelArgs()
 
-        if device == 0:
+        if is_main_process():
             #         # Initialise run
             wandb.init(
                 # entity = 'rajceo2031',
@@ -331,7 +333,7 @@ class Trainer:
         epochs = ModelArgs.epochs
 
         # train_step_iterator = range(len(train_dataloader))
-        # if device == 0:  # Only create progress bar on rank 0
+        # if is_main_process():  # Only create progress bar on rank 0
         #   train_step_iterator = tqdm(train_step_iterator, desc="Training Progress", position=0, leave=True)
 
         # Print progress on rank 0
@@ -339,7 +341,7 @@ class Trainer:
         train_data_iterator = iter(train_dataloader)
         val_data_iterator = iter(val_loader)
         token_count = 0
-        if device == 0:
+        if is_main_process():
             train_loader_length = len(train_dataloader)
             # print("Total batches: ", train_loader_length)
         # print("Length of : ", len(train_dataloader))
@@ -349,7 +351,7 @@ class Trainer:
             # print("Dataloader things: ", batch)
             # print("Total batches: ", len(train_dataloader))
 
-            if device == 0:
+            if is_main_process():
                 # if(step % 100 == 0):
                 #     if(step == train_loader_length):
                 #       break
@@ -366,14 +368,14 @@ class Trainer:
                 # avg_train_loss = losses['train']
                 avg_val_loss = losses['val']
                 # print(f"step {step}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
-                # if device == 0:  # Only print on main process
+                # if is_main_process():  # Only print on main process
                 print(f"[GPU {device}] | Step: {step} / {total_iters} | Val Loss: {losses['val']:.4f}")
 
                 avg_val_loss = torch.Tensor([losses['val']]).to(device)
-                # torch.distributed.reduce(avg_train_loss, dst=0, op=torch.distributed.ReduceOp.SUM)
-                torch.distributed.reduce(avg_val_loss, dst=0, op=torch.distributed.ReduceOp.SUM)
+                # reduce_sum_to_main(avg_train_loss)
+                reduce_sum_to_main(avg_val_loss)
 
-                if device == 0:
+                if is_main_process():
                     # all_gpus_avg_train_loss = avg_train_loss / world_size
                     # print(f"All_GPUs_Train_losses: {all_gpus_avg_train_loss.item():.4f}")
                     all_gpus_avg_val_loss = avg_val_loss / world_size
@@ -391,7 +393,7 @@ class Trainer:
                         }
                     )
 
-            if step % save_checkpoint_iter == 0 and device == 0 and step != 0:
+            if step % save_checkpoint_iter == 0 and is_main_process() and step != 0:
                 print(f"Saving the model checkpoint for step: {step}")
                 self._save_snapshot(sft_model, optimizer, None, None, step)
 
@@ -423,7 +425,7 @@ class Trainer:
                 #     print(f"Unused parameters: {unused_params}")
                 # break
 
-                if device == 0:
+                if is_main_process():
                     if micro_step % 10 == 0:
                         #     if(step == train_loader_length):
                         #       break
@@ -453,7 +455,7 @@ class Trainer:
                     torch.stack([torch.norm(p.grad.detach(), 2) for p in sft_model.parameters()]), 2
                 )
 
-                if device == 0 and step != 0:
+                if is_main_process() and step != 0:
                     print(f"Gradient Norm Before Clipping: {total_norm_before.item():.4f}")
                     print(f"Gradient Norm After Clipping: {total_norm_after.item():.4f}")
 
@@ -464,8 +466,8 @@ class Trainer:
             # new_scheduler.step()
 
             synchronize(ModelArgs.device)
-            torch.distributed.reduce(loss, dst=0, op=torch.distributed.ReduceOp.SUM)
-            if device == 0:
+            reduce_sum_to_main(loss)
+            if is_main_process():
                 wandb.log(
                     {
                         "Learning Rate": lr,
@@ -478,7 +480,7 @@ class Trainer:
                     }
                 )
 
-            if device == 0 and step % 50 == 0:
+            if is_main_process() and step % 50 == 0:
                 count = 1
                 while count:  # Only generate text on the main process
                     # print("Generating text...")
@@ -511,7 +513,7 @@ class Trainer:
                     count -= 1
 
         # Cleanup
-        if device == 0:
+        if is_main_process():
             # writer.close()
             wandb.finish()
         self.cleanup()
@@ -525,7 +527,7 @@ class Trainer:
 
         print(f"Start running DDP on rank {device}.")
 
-        if device == 0:
+        if is_main_process():
             #         # Initialise run
             wandb.init(
                 # entity = 'rajceo2031',
@@ -630,11 +632,11 @@ class Trainer:
         train_data_iterator = iter(train_dataloader)
         val_data_iterator = iter(val_loader)
         token_count = 0
-        if device == 0:
+        if is_main_process():
             train_loader_length = len(train_dataloader)
 
         for step in tqdm(range(total_iters)):
-            if device == 0:
+            if is_main_process():
                 print("Step : ", step, "/", total_iters)
                 print('Total batches: ', len(train_dataloader))
                 print("Total gradient accumulation steps: ", gradient_accumulation_steps)
@@ -648,10 +650,10 @@ class Trainer:
                 print(f"[GPU {device}] | Step: {step} / {total_iters} | Val Loss: {losses['val']:.4f}")
 
                 avg_val_loss = torch.Tensor([losses['val']]).to(device)
-                # torch.distributed.reduce(avg_train_loss, dst=0, op=torch.distributed.ReduceOp.SUM)
-                torch.distributed.reduce(avg_val_loss, dst=0, op=torch.distributed.ReduceOp.SUM)
+                # reduce_sum_to_main(avg_train_loss)
+                reduce_sum_to_main(avg_val_loss)
 
-                if device == 0:
+                if is_main_process():
                     all_gpus_avg_val_loss = avg_val_loss / world_size
                     print(f"All_GPUs_Val_losses: {all_gpus_avg_val_loss.item():.4f}")
 
@@ -667,7 +669,7 @@ class Trainer:
                         }
                     )
 
-            if step % save_checkpoint_iter == 0 and device == 0 and step != 0:
+            if step % save_checkpoint_iter == 0 and is_main_process() and step != 0:
                 print(f"Saving the model checkpoint for step: {step}")
                 self._save_snapshot(model, optimizer, None, None, step)
 
@@ -724,7 +726,7 @@ class Trainer:
                     print(f"Unused parameters: {unused_params}")
                 # break
 
-                if device == 0:
+                if is_main_process():
                     if micro_step % 10 == 0:
                         #     if(step == train_loader_length):
                         #       break
@@ -754,7 +756,7 @@ class Trainer:
                     torch.stack([torch.norm(p.grad.detach(), 2) for p in model.parameters()]), 2
                 )
 
-                if device == 0 and step != 0:
+                if is_main_process() and step != 0:
                     print(f"Gradient Norm Before Clipping: {total_norm_before.item():.4f}")
                     print(f"Gradient Norm After Clipping: {total_norm_after.item():.4f}")
 
@@ -765,8 +767,8 @@ class Trainer:
             # new_scheduler.step()
 
             synchronize(ModelArgs.device)
-            torch.distributed.reduce(loss, dst=0, op=torch.distributed.ReduceOp.SUM)
-            if device == 0:
+            reduce_sum_to_main(loss)
+            if is_main_process():
                 wandb.log(
                     {
                         "Learning Rate": lr,
@@ -781,7 +783,7 @@ class Trainer:
             # print(loss.item())
 
             # break
-            if device == 0 and step % 5 == 0:
+            if is_main_process() and step % 5 == 0:
                 count = 3
                 while count:  # Only generate text on the main process
                     prompt = "Once upon a time"
@@ -793,7 +795,7 @@ class Trainer:
 
                     count -= 1
 
-        if device == 0:
+        if is_main_process():
             wandb.finish()
         self.cleanup()
 
