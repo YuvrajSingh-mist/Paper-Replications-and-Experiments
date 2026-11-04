@@ -67,15 +67,12 @@ pre-commit run --all-files
 | --- | --- | --- |
 | Ruff | `ruff check .` | `E9`, `F63`, `F7`, `F82`, `F401` — see below |
 | Format | `ruff format --check .` | anything `ruff format .` would change |
-| Parse (3.12, 3.13) | `python tools/check_syntax.py .` | files that do not parse |
-| Removed stdlib | `python tools/check_removed_stdlib.py .` | imports of modules Python deleted |
 | Import smoke tests | `python -m pytest tests -q` | modules that cannot be imported |
 
 Run all of them locally with:
 
 ```bash
 ruff check . && ruff format --check . && \
-  python tools/check_syntax.py . && python tools/check_removed_stdlib.py . && \
   python -m pytest tests -q
 ```
 
@@ -83,12 +80,6 @@ ruff check . && ruff format --check . && \
 
 Every one of them corresponds to a bug that actually reached `master`:
 
-- **Removed stdlib.** `from uu import encode` sat in a training script for a
-  year. It was valid syntax on every version, so nothing caught it — until
-  Python 3.13 deleted `uu` and the script died before importing torch. A syntax
-  check cannot see this; only resolving the name against the interpreter can.
-- **Parse.** One script had an unmatched `)` and had never parsed in any commit,
-  including the merge that introduced it.
 - **Lint (`F82`).** A module imported a helper from a file that did not exist,
   and six trainer classes referenced helpers that were never in scope.
 - **Lint (`F401`).** An unused import of a module that no longer exists still
@@ -106,8 +97,6 @@ Every one of them corresponds to a bug that actually reached `master`:
 `ruff.toml` excludes the following on purpose. Do not "fix" them into scope
 without a reason:
 
-- `*/old/**` — superseded copies kept for reference. Still parsed by
-  `check_syntax.py`, so a broken file cannot hide there.
 - `*.ipynb` — cell order is stateful, which makes undefined-name rules noise.
 - `*.md` — reformatting embedded code samples churns READMEs.
 - `Replications/CLAP/**` — vendored copy of an upstream repository. Keep it

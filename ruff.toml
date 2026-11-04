@@ -32,9 +32,6 @@ exclude = [
 
 # What is out of scope for both lint and format, and why:
 #
-#   */old/**        superseded copies of scripts, kept for reference. Dead code,
-#                   but still parsed by tools/check_syntax.py so a broken file
-#                   cannot hide here.
 #   *.ipynb         cell execution is stateful and out-of-order, which makes
 #                   undefined-name rules noise rather than signal.
 #   *.md            documentation. Reformatting the embedded Python samples
@@ -43,7 +40,6 @@ exclude = [
 #                   repository. Keep byte-close to upstream so it stays
 #                   diffable; fixes belong upstream.
 extend-exclude = [
-    "**/old/**",
     "**/*.ipynb",
     "**/*.md",
     "Replications/CLAP/**",
