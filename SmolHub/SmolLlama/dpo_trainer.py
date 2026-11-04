@@ -474,4 +474,7 @@ if __name__ == "__main__":
     
 
     model_args = initialize_model_args(args)
+
+    trainer = Trainer(model_args)
+    trainer.train()
  
