@@ -16,9 +16,8 @@ import shutil
 model_paths = {
     "SFT": "weights/fine_tuned/models--YuvrajSingh9886--smol-llama-finetuned/snapshots/35df7811c322dab5f8df56f6a1f61b5bcf6a7339/snapshot_fine_tuned_model_900.pt",
     "DPO": "weights/DPO/models--YuvrajSingh9886--smol-llama-dpo/snapshots/13b9f059cf4630e6079e8822ea7cb7a703d77ed8/DPO_model_1650.pt",
-    "Pretrained": "weights/pretrained/models--YuvrajSingh9886--smol-llama-base/snapshots/8e50a94e3c83649e48eb02549558130c87e75a87/snapshot_6750.pt"
+    "Pretrained": "weights/pretrained/models--YuvrajSingh9886--smol-llama-base/snapshots/8e50a94e3c83649e48eb02549558130c87e75a87/snapshot_6750.pt",
 }
-
 
 
 ACCESS_TOKEN = os.getenv("GDRIVE_ACCESS_TOKEN")
@@ -34,10 +33,9 @@ tk = Tokenizer()
 tk = tk.ready_tokenizer()
 
 
-
 def beam_search(model, prompt, device, max_length=50, beam_width=5, top_k=50, temperature=1.0):
     input_ids = tk.encode(prompt, return_tensors='pt').to(device)
-    
+
     # Initialize beams with initial input repeated beam_width times
     beams = input_ids.repeat(beam_width, 1)
     beam_scores = torch.zeros(beam_width).to(device)  # Initialize scores
@@ -46,25 +44,25 @@ def beam_search(model, prompt, device, max_length=50, beam_width=5, top_k=50, te
         with torch.no_grad():
             outputs = model(beams)
             logits = outputs[:, -1, :]  # Get last token logits
-            
+
             # Apply temperature scaling
             scaled_logits = logits / temperature
-            
+
             # Calculate log probabilities
             log_probs = F.log_softmax(scaled_logits, dim=-1)
-            
+
             # Get top k candidates for each beam
             topk_log_probs, topk_indices = torch.topk(log_probs, top_k, dim=-1)
-            
+
             # Generate all possible candidates
             expanded_beams = beams.repeat_interleave(top_k, dim=0)
             new_tokens = topk_indices.view(-1, 1)
             candidate_beams = torch.cat([expanded_beams, new_tokens], dim=1)
-            
+
             # Calculate new scores for all candidates
             expanded_scores = beam_scores.repeat_interleave(top_k)
             candidate_scores = expanded_scores + topk_log_probs.view(-1)
-            
+
             # Select top beam_width candidates
             top_scores, top_indices = candidate_scores.topk(beam_width)
             beams = candidate_beams[top_indices]
@@ -74,6 +72,7 @@ def beam_search(model, prompt, device, max_length=50, beam_width=5, top_k=50, te
     best_idx = beam_scores.argmax()
     best_sequence = beams[best_idx]
     return tk.decode(best_sequence, skip_special_tokens=True)
+
 
 # Function to load the selected model
 def load_model(model_type):
@@ -90,12 +89,12 @@ def load_model(model_type):
 
     # Load the model
     model = Llama(
-        device=ModelArgs.device, 
-        embeddings_dims=ModelArgs.embeddings_dims, 
-        no_of_decoder_layers=ModelArgs.no_of_decoder_layers, 
-        block_size=ModelArgs.block_size, 
-        vocab_size=ModelArgs.vocab_size, 
-        dropout=ModelArgs.dropout
+        device=ModelArgs.device,
+        embeddings_dims=ModelArgs.embeddings_dims,
+        no_of_decoder_layers=ModelArgs.no_of_decoder_layers,
+        block_size=ModelArgs.block_size,
+        vocab_size=ModelArgs.vocab_size,
+        dropout=ModelArgs.dropout,
     )
     model = model.to(ModelArgs.device)
 
@@ -109,17 +108,15 @@ def load_model(model_type):
 
 # download_models()
 current_model = load_model("SFT")
-        
-       
-
 
 
 def clean_prompt(text):
-    
+
     text = re.sub(r'### Instruction:\s*', '', text)
     text = re.sub(r'### Input:\s*', '', text)
     text = re.sub(r'### Response:\s*', '', text)
     return text.strip()
+
 
 def answer_question(model_type, prompt, temperature, top_k, max_length):
     global current_model
@@ -129,16 +126,21 @@ def answer_question(model_type, prompt, temperature, top_k, max_length):
     if model_paths[model_type] != model_paths.get(current_model, None):
         current_model = load_model(model_type)
 
-
     formatted_prompt = f"### Instruction: Answer the following query. \n\n ### Input: {prompt}.\n\n ### Response: "
-    
+
     with torch.no_grad():
         # if decoding_method == "Beam Search":
-        #     generated_text = beam_search(current_model, formatted_prompt, device=ModelArgs.device, 
+        #     generated_text = beam_search(current_model, formatted_prompt, device=ModelArgs.device,
         #                                    max_length=max_length, beam_width=5, top_k=top_k, temperature=temperature)
         # else:
-        generated_text = topk_sampling(current_model, formatted_prompt, max_length=max_length, 
-                                           top_k=top_k, temperature=temperature, device=ModelArgs.device)
+        generated_text = topk_sampling(
+            current_model,
+            formatted_prompt,
+            max_length=max_length,
+            top_k=top_k,
+            temperature=temperature,
+            device=ModelArgs.device,
+        )
         generated_text = clean_prompt(generated_text)
         return generated_text
 
@@ -150,12 +152,12 @@ iface = gr.Interface(
         # gr.Dropdown(choices=["Top-K Sampling", "Beam Search"], value="Top-K Sampling", label="Decoding Method"),
         gr.Textbox(label="Prompt", lines=5),
         gr.Slider(minimum=0.1, maximum=1.0, value=0.8, step=0.1, label="Temperature"),
-        gr.Slider(minimum=50,maximum = ModelArgs.vocab_size, value=50, step=1, label="Top-k"),
-        gr.Slider(minimum=10, maximum=ModelArgs.block_size, value=256, step=1, label="Max Length")
+        gr.Slider(minimum=50, maximum=ModelArgs.vocab_size, value=50, step=1, label="Top-k"),
+        gr.Slider(minimum=10, maximum=ModelArgs.block_size, value=256, step=1, label="Max Length"),
     ],
     outputs=gr.Textbox(label="Answer"),
     title="SmolLlama",
-    description="Enter a prompt, select a model (SFT or DPO) and the model will generate an answer."
+    description="Enter a prompt, select a model (SFT or DPO) and the model will generate an answer.",
 )
 
 # Launch the Gradio app

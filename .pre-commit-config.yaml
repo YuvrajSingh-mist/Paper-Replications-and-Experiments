@@ -1,0 +1,29 @@
+# Run these before every commit.
+#
+#   pip install pre-commit
+#   pre-commit install
+#
+# After that, `git commit` runs ruff automatically and refuses the commit if
+# lint or formatting fails. To check the whole tree without committing:
+#
+#   pre-commit run --all-files
+#
+# The ruff version is pinned here and in .github/workflows/ci.yml so the hook and
+# CI agree byte-for-byte. Bump both together, in a commit that also reformats.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.3
+    hooks:
+      # Lint. ruff.toml decides which rules and which paths are in scope.
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      # Formatting. Same config, same scope.
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      # Cheap guards against committing a broken or half-merged file. These do
+      # not rewrite anything, so they cannot surprise you with unstaged edits.
+      - id: check-merge-conflict
+      - id: debug-statements

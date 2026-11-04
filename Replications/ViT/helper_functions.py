@@ -1,4 +1,3 @@
-
 import torch
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,14 +10,11 @@ import requests
 import os
 
 
-
-# Plot linear data or training and test and predictions 
-def plot_predictions(
-    train_data, train_labels, test_data, test_labels, predictions=None
-):
+# Plot linear data or training and test and predictions
+def plot_predictions(train_data, train_labels, test_data, test_labels, predictions=None):
     """
-  Plots linear training data and test data and compares predictions.
-  """
+    Plots linear training data and test data and compares predictions.
+    """
     plt.figure(figsize=(10, 7))
 
     plt.scatter(train_data, train_labels, c="b", s=4, label="Training data")
@@ -26,13 +22,12 @@ def plot_predictions(
     plt.scatter(test_data, test_labels, c="g", s=4, label="Testing data")
 
     if predictions is not None:
- 
         plt.scatter(test_data, predictions, c="r", s=4, label="Predictions")
 
     plt.legend(prop={"size": 14})
 
 
-# Calculate accuracy 
+# Calculate accuracy
 def accuracy_fn(y_true, y_pred):
     """Calculates accuracy between truth labels and predictions.
 
@@ -52,7 +47,7 @@ def print_train_time(start, end, device=None):
     """Prints difference between start and end time.
 
     Args:
-        start (float): Start time of computation (preferred in timeit format). 
+        start (float): Start time of computation (preferred in timeit format).
         end (float): End time of computation.
         device ([type], optional): Device that compute is running on. Defaults to None.
 
@@ -102,7 +97,6 @@ def plot_loss_curves(results):
     plt.legend()
 
 
-
 from typing import List
 import torchvision
 
@@ -122,7 +116,7 @@ def pred_and_plot_image(
         class_names (List[str], optional): different class names for target image. Defaults to None.
         transform (_type_, optional): transform of target image. Defaults to None.
         device (torch.device, optional): target device to compute on. Defaults to "cuda" if torch.cuda.is_available() else "cpu".
-    
+
     Returns:
         Matplotlib plot of target image and model prediction as title.
 
@@ -134,7 +128,6 @@ def pred_and_plot_image(
                             device=device)
     """
 
-   
     target_image = torchvision.io.read_image(str(image_path)).type(torch.float32)
 
     target_image = target_image / 255.0
@@ -150,14 +143,11 @@ def pred_and_plot_image(
 
         target_image_pred = model(target_image.to(device))
 
- 
     target_image_pred_probs = torch.softmax(target_image_pred, dim=1)
 
     target_image_pred_label = torch.argmax(target_image_pred_probs, dim=1)
 
-    plt.imshow(
-        target_image.squeeze().permute(1, 2, 0)
-    ) 
+    plt.imshow(target_image.squeeze().permute(1, 2, 0))
     if class_names:
         title = f"Pred: {class_names[target_image_pred_label.cpu()]} | Prob: {target_image_pred_probs.max().cpu():.3f}"
     else:
@@ -165,14 +155,14 @@ def pred_and_plot_image(
     plt.title(title)
     plt.axis(False)
 
-def set_seeds(seed: int=42):
+
+def set_seeds(seed: int = 42):
     """Sets random sets for torch operations.
 
     Args:
         seed (int, optional): Random seed to set. Defaults to 42.
     """
-   
-    torch.manual_seed(seed)
-    
-    torch.cuda.manual_seed(seed)
 
+    torch.manual_seed(seed)
+
+    torch.cuda.manual_seed(seed)
