@@ -186,8 +186,7 @@ StoryMixtral/
 │   └── app.py        # Gradio web interface
 ├── checkpoints/      # Model checkpoints
 ├── generated_data/   # Generated text outputs
-├── images/           # Project images
-└── old/             # Original files
+└── images/           # Project images
 ```
 
 
