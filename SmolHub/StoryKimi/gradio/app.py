@@ -1,6 +1,5 @@
 import gradio as gr
 import torch
-import torch.nn.functional as F
 import os
 import sys
 import argparse
@@ -8,7 +7,7 @@ import argparse
 # Add parent directory to path to import modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from config import ModelArgs, get_args
+from config import ModelArgs
 from model import DeepSeekV3, initialize_tokenizer
 from tokenizer import Tokenizer
 from inference import topk_sampling

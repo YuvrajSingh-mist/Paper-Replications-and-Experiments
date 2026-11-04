@@ -1,29 +1,20 @@
 # Based on Llama from Meta (https://github.com/meta-llama/llama/blob/main/llama/model.py)
-import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
 from dataclasses import dataclass
-from tokenizers import Tokenizer
-from pathlib import Path
-import torch.multiprocessing as mp
 from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 import torch
-from datasets import Dataset
 from torch.utils.data import DataLoader
-from transformers.models.prophetnet.modeling_prophetnet import ProphetNetDecoderModelOutput
 import wandb
 from tqdm import tqdm
-from functools import partial
-import tiktoken
 import torch.optim as optim
-from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 
 # Load model directly
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoTokenizer
 import os
 
 torch.manual_seed(1337)
@@ -37,7 +28,7 @@ torch.cuda.manual_seed(1337)
 # from torch.utils.tensorboard import SummaryWriter
 
 
-from datasets import load_dataset, concatenate_datasets
+from datasets import load_dataset
 
 # data = {}
 # texts = []
@@ -962,7 +953,7 @@ def save_to_file(text):
 
 # writer = SummaryWriter(log_dir="runs/experiment")
 
-from torch.optim.lr_scheduler import LambdaLR, CosineAnnealingLR, SequentialLR
+from torch.optim.lr_scheduler import LambdaLR
 
 
 # Warmup phase for 2000 steps

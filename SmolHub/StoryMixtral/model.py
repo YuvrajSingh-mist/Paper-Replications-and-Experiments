@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import math
 from dataclasses import dataclass
 from torch.utils.checkpoint import checkpoint
 

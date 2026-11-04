@@ -1,4 +1,3 @@
-import time
 import torch
 import torch.nn.functional as F
 import math
@@ -16,7 +15,6 @@ from config import ModelArgs, get_args
 from model import DeepSeekV3
 from data import prepare_dataset, initialize_tokenizer
 from inference import topk_sampling, save_text
-from tokenizer import Tokenizer
 
 
 def setup_ddp():

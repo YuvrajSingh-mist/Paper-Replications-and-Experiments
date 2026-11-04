@@ -16,18 +16,14 @@ Usage:
 
 import gradio as gr
 import spaces
-from transformers import pipeline
 from config import ModelArgs
 from inference import remove_prefix
 from model import Llama
 import torch
 from inference_sft import topk_sampling
-import os
 import subprocess
-import re
 from tokenizer import Tokenizer
 import torch.nn.functional as F
-import shutil
 
 # Define model paths
 model_paths = {

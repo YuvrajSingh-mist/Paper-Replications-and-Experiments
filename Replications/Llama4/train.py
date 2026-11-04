@@ -10,15 +10,9 @@ import math
 import tqdm
 from dataclasses import dataclass
 from torch.nn import RMSNorm
-from tokenizers import Tokenizer
-from pathlib import Path
-import torch.multiprocessing as mp
-from torch.utils.data.distributed import DistributedSampler
-from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.distributed import init_process_group, destroy_process_group
 import wandb
 from torch.utils.data import DataLoader
-from datasets import load_dataset, concatenate_datasets
+from datasets import load_dataset
 
 
 # Load model directly

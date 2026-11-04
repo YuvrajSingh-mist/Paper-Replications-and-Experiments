@@ -1,13 +1,5 @@
 import torch
 import matplotlib.pyplot as plt
-import numpy as np
-
-from torch import nn
-import os
-import zipfile
-from pathlib import Path
-import requests
-import os
 
 
 # Plot linear data or training and test and predictions

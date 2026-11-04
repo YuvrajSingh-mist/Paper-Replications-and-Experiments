@@ -1,14 +1,7 @@
 import torch
-import torchvision
-from pathlib import Path
-import matplotlib.pyplot as plt
 import torch
-import torchvision
-import torchinfo
 from torch import nn
 from torchvision import transforms
-from torch.utils.data import DataLoader
-import os
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 

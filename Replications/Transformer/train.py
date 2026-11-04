@@ -825,9 +825,6 @@ def topk_sampling(model, prompt, device, max_length=30, top_k=50, temperature=0.
     return generated_text
 
 
-import copy
-
-
 def beam_search_corrected(
     model,
     prompt: str,
@@ -982,7 +979,6 @@ model = model.to(device)
 
 # Printing a summary of the architecture
 # !pip install torchinfo
-from torchinfo import summary
 
 # Create dummy inputs for all required arguments
 src = torch.randint(low=0, high=src_vocab_size, size=(batch_size, block_size), dtype=torch.long).to(device)
