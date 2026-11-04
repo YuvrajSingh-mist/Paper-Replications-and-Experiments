@@ -2,7 +2,8 @@ import torch
 import torch.nn as nn
 import math
 import torch.optim as optim
-from torch.distributed import init_process_group, destroy_process_group
+from torch.distributed import destroy_process_group
+from device_utils import distributed_world_size, setup_process_group, synchronize
 import wandb
 from tqdm import tqdm
 
@@ -15,7 +16,7 @@ from inference import topk_sampling, save_to_file
 def setup(rank=None, world_size=None):
     # os.environ['MASTER_ADDR'] = 'localhost'
     # os.environ['MASTER_PORT'] = '12355'
-    init_process_group("nccl")
+    setup_process_group()
     # torch.cuda.set_device(int(os.environ['LOCAL_RANK']))
 
 
@@ -156,7 +157,7 @@ def train(model_args=None, hf_token=None):
     # model = DDP(model, device_ids=[device])
 
     model.eval()
-    world_size = torch.cuda.device_count()
+    world_size = distributed_world_size()
 
     @torch.inference_mode()
     def estimate_loss(val_loader, val_iterator, device):
@@ -388,7 +389,7 @@ def train(model_args=None, hf_token=None):
         optimizer.step()
         scheduler.step()
         # torch.cuda.empty_cache()
-        torch.cuda.synchronize()
+        synchronize()
         # accumulated_loss = loss
 
         # torch.distributed.reduce(loss, dst=0, op=torch.distributed.ReduceOp.SUM)
@@ -439,9 +440,11 @@ def train(model_args=None, hf_token=None):
 
 
 if __name__ == "__main__":
-    torch.backends.cuda.matmul.allow_tf32 = True
-    torch.backends.cudnn.allow_tf32 = True
-    torch.backends.cuda.enable_flash_sdp(True)  # Enable FlashAttention
+    # CUDA-only fast paths. Guarded so an MPS/CPU run does not trip on them.
+    if torch.cuda.is_available():
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
+        torch.backends.cuda.enable_flash_sdp(True)  # Enable FlashAttention
 
     torch.set_float32_matmul_precision('high')
 
@@ -450,7 +453,7 @@ if __name__ == "__main__":
 
     # scaler = torch.amp.GradScaler(enabled=(model_args.dtype == 'float16'))
 
-    world_size = torch.cuda.device_count()
+    world_size = distributed_world_size()
     print(f"World size: {world_size}")
 
     # Pass model_args to train function

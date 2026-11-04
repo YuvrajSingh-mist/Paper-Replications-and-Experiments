@@ -1,6 +1,8 @@
 import argparse
 from dataclasses import dataclass
 
+from device_utils import default_device, liger_available
+
 
 def get_args():
     parser = argparse.ArgumentParser(description='SmolKimi - DeepSeek V3 Inspired Model Training')
@@ -43,7 +45,7 @@ def get_args():
     parser.add_argument('--attn_dropout', type=float, default=0.1, help='Attention dropout rate')
 
     # System Configuration
-    parser.add_argument('--device', type=str, default='cuda', help='Device to use (cuda/cpu)')
+    parser.add_argument('--device', type=str, default=default_device(), help='Device to use (cuda/mps/cpu)')
     parser.add_argument('--use_checkpointing', action='store_true', default=False, help='Use gradient checkpointing')
     parser.add_argument('--use_liger', action='store_true', default=True, help='Use Liger kernels for optimization')
     parser.add_argument(
@@ -140,7 +142,7 @@ class ModelArgs:
         # System Configuration
         self.device = args.device
         self.use_checkpointing = args.use_checkpointing
-        self.use_liger = args.use_liger
+        self.use_liger = bool(args.use_liger) and liger_available()
         self.ignore_pad_token_in_loss = args.ignore_pad_token_in_loss
 
         # Data Configuration

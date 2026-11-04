@@ -244,10 +244,37 @@ def install(device_count: int = 0) -> None:
     _module("torch.multiprocessing")
     _module("torch.optim")
     _module("torch.optim.lr_scheduler")
-    _module("torch.distributed")
-    _module("torch.amp")
+
+    # Distributed state is explicit rather than a truthy Fake. device_utils asks
+    # is_available() and is_initialized(), and a Fake would answer both "yes",
+    # which is the opposite of this stub's purpose (model a machine with no GPU).
+    _module(
+        "torch.distributed",
+        is_available=lambda: True,
+        is_initialized=lambda: False,
+        get_world_size=lambda: 1,
+        get_rank=lambda: 0,
+        init_process_group=lambda *a, **k: None,
+        destroy_process_group=lambda *a, **k: None,
+        ReduceOp=Fake("torch.distributed.ReduceOp"),
+    )
+
+    # No MPS on a CUDA-only stub machine, and None of the CUDA fast-path flags.
+    backends = _module("torch.backends")
+    _module("torch.backends.mps", is_available=lambda: False)
+    _module("torch.backends.cuda", matmul=Fake("torch.backends.cuda.matmul"), enable_flash_sdp=lambda *a, **k: None)
+    _module("torch.backends.cudnn", allow_tf32=False)
+    backends.mps = sys.modules["torch.backends.mps"]
+    backends.cuda = sys.modules["torch.backends.cuda"]
+    backends.cudnn = sys.modules["torch.backends.cudnn"]
+
+    _module("torch.mps", is_available=lambda: False, synchronize=lambda *a, **k: None, empty_cache=lambda *a, **k: None)
+
+    _module("torch.amp", GradScaler=type("GradScaler", (), {"__init__": lambda self, *a, **k: None}))
     _module("torch.amp.grad_scaler")
     _module("torch.cuda.amp", autocast=lambda *a, **k: lambda fn: fn)
+    torch.autocast = lambda *a, **k: Fake("torch.autocast()")
+    torch.device = lambda spec: Fake(f"torch.device({spec!r})")
 
     sys.modules["torch"] = torch
 

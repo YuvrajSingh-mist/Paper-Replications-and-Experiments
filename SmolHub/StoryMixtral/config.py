@@ -3,6 +3,8 @@ import argparse
 from dataclasses import dataclass
 import os
 
+from device_utils import default_device, liger_available
+
 torch.manual_seed(1337)
 torch.cuda.manual_seed(1337)
 
@@ -40,7 +42,7 @@ def get_args():
     parser.add_argument('--attn_dropout', type=float, default=0.1, help='Attention dropout rate')
 
     # System Configuration
-    parser.add_argument('--device', type=str, default='cuda', help='Device to use (cuda/cpu)')
+    parser.add_argument('--device', type=str, default=default_device(), help='Device to use (cuda/mps/cpu)')
     parser.add_argument('--use_checkpointing', action='store_true', default=False, help='Use gradient checkpointing')
     parser.add_argument('--use_liger', action='store_true', default=True, help='Use Liger kernels for optimization')
     parser.add_argument('--use_flash_attention', action='store_true', default=True, help='Use Flash Attention')
@@ -173,7 +175,7 @@ class ModelArgs:
         # System Configuration
         self.device = args.device
         self.use_checkpointing = args.use_checkpointing
-        self.use_liger = args.use_liger
+        self.use_liger = bool(args.use_liger) and liger_available()
         self.use_flash_attention = args.use_flash_attention
         self.use_compile = args.use_compile
 

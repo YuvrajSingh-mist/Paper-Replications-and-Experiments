@@ -4,10 +4,21 @@ import torch.nn.functional as F
 from dataclasses import dataclass
 from torch.utils.checkpoint import checkpoint
 
-from liger_kernel.transformers import LigerLayerNorm
-from liger_kernel.transformers import LigerSwiGLUMLP
-from liger_kernel.transformers import liger_rotary_pos_emb
-from liger_kernel.transformers import LigerFusedLinearCrossEntropyLoss
+from device_utils import liger_available
+
+# Liger kernels are Triton/CUDA only. When they are not usable the model falls
+# back to its plain PyTorch branches, which are already selected by
+# `model_args.use_liger` (see config.py).
+if liger_available():
+    from liger_kernel.transformers import LigerFusedLinearCrossEntropyLoss
+    from liger_kernel.transformers import LigerLayerNorm
+    from liger_kernel.transformers import LigerSwiGLUMLP
+    from liger_kernel.transformers import liger_rotary_pos_emb
+else:
+    LigerFusedLinearCrossEntropyLoss = None
+    LigerLayerNorm = None
+    LigerSwiGLUMLP = None
+    liger_rotary_pos_emb = None
 from config import create_model_args
 
 # Create default model args instance
@@ -82,6 +93,30 @@ class RotaryEmbeddings(nn.Module):
             )
             out = out.view(batch_size, seq_len, embeds_dims)
         return out
+
+    def apply_rope_heads(self, x):
+        """RoPE over the last dim of a (batch, [heads,] seq, head_size) tensor.
+
+        The Liger path hands this to `liger_rotary_pos_emb`. This is the plain
+        PyTorch equivalent, used when Liger is unavailable (e.g. on MPS).
+        """
+        head_size = x.shape[-1]
+        seq_len = x.shape[-2]
+        pos = torch.arange(0, head_size, 2, device=self.device, dtype=torch.float32).unsqueeze(0)
+        theta = 10000 ** (-2 * pos / head_size)
+        token_idx = torch.arange(0, seq_len, device=self.device, dtype=torch.float32).unsqueeze(1)
+        angles = (token_idx * theta).unsqueeze(0).unsqueeze(0)  # (1, 1, T, head_size // 2)
+        cos_angles = torch.cos(angles).to(x.dtype)
+        sin_angles = torch.sin(angles).to(x.dtype)
+        x_reshaped = x.view(*x.shape[:-1], head_size // 2, 2)
+        out = torch.stack(
+            [
+                x_reshaped[..., 0] * cos_angles - x_reshaped[..., 1] * sin_angles,
+                x_reshaped[..., 1] * cos_angles + x_reshaped[..., 0] * sin_angles,
+            ],
+            dim=-1,
+        )
+        return out.view(*x.shape)
 
     def forward(self, x, q=None, k=None):
         # print("X shape: ", x.shape)
@@ -346,8 +381,8 @@ class AttentionHead(nn.Module):
                 k = self.keys(x)
                 q = self.query(x)
                 v = self.values(x)
-                q = self.rope(q)
-                k = self.rope(k)
+                q = self.rotary.apply_rope_heads(q)
+                k = self.rotary.apply_rope_heads(k)
                 masked_table = torch.tril(torch.ones(block_size, block_size, device=model_args.device))
                 weights = q @ torch.transpose(k, dim0=-2, dim1=-1) * (k.shape[-1] ** -0.5)
                 masked_values = weights.masked_fill(masked_table[:block_size, :block_size] == 0, float('-inf'))
@@ -367,7 +402,11 @@ class AttentionHead(nn.Module):
             q = q.view(batch_size, block_size, self.no_of_heads, self.head_size).transpose(1, 2)
             k = k.view(batch_size, block_size, self.no_of_heads, self.head_size).transpose(1, 2)
             v = v.view(batch_size, block_size, self.no_of_heads, self.head_size).transpose(1, 2)
-            q, k = self.rope(x, q, k)
+            if model_args.use_liger:
+                q, k = self.rope(x, q, k)
+            else:
+                q = self.rotary.apply_rope_heads(q)
+                k = self.rotary.apply_rope_heads(k)
             # print(q.shape)
             # print(k.shape)
             out = torch.nn.functional.scaled_dot_product_attention(

@@ -6,6 +6,8 @@ import wandb
 from tqdm import tqdm
 from torch.cuda.amp import GradScaler
 
+from device_utils import autocast_context, empty_cache, grad_scaler_enabled
+
 # Local imports
 from config import ModelArgs
 from model import Transformer
@@ -247,7 +249,7 @@ def estimate_loss(val_loader, val_iterator, device, model, model_args):
             src_mask = src_mask.masked_fill(idx == tokenizer.pad_token_id, 0)
             tgt_mask = tgt_mask.masked_fill(targets_idx == tokenizer.pad_token_id, 0)
 
-            with torch.autocast(device_type='cuda' if 'cuda' in str(device) else 'cpu', dtype=torch.float16):
+            with autocast_context(device, torch.float16):
                 loss = model(idx, targets_idx, targets, src_mask, tgt_mask)
 
             total_loss += loss.item()
@@ -327,7 +329,7 @@ def train():
     token_count = 0
 
     # Setup mixed precision training
-    scaler = GradScaler(enabled=True)
+    scaler = GradScaler(enabled=grad_scaler_enabled(model_args.device, 'float16'))
 
     # Calculate total batches
     batches_per_epoch = len(train_dataloader)
@@ -393,7 +395,7 @@ def train():
 
             token_count += idx.numel()
 
-            with torch.autocast(device_type='cuda' if 'cuda' in str(model_args.device) else 'cpu', dtype=torch.float16):
+            with autocast_context(model_args.device, torch.float16):
                 loss = model(idx, targets_idx, targets, src_mask, tgt_mask)
 
             # Scale loss by gradient accumulation steps
@@ -437,7 +439,7 @@ def train():
         scaler.step(optimizer)
         scaler.update()
 
-        torch.cuda.empty_cache()
+        empty_cache(model_args.device)
 
         # Calculate metrics
         perplexity = torch.exp(torch.tensor(accumulated_loss))

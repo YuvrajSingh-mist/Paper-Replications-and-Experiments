@@ -15,23 +15,41 @@ from config import ModelArgs, get_args
 from model import DeepSeekV3
 from data import prepare_dataset, initialize_tokenizer
 from inference import topk_sampling, save_text
+from device_utils import autocast_context, default_device
 
 
 def setup_ddp():
     """Initialize DDP setup"""
-    # Initialize the process group
-    dist.init_process_group(backend='nccl')
+    if torch.cuda.is_available():
+        # Unchanged CUDA path.
+        dist.init_process_group(backend='nccl')
 
-    # Get local rank from environment variable set by torchrun
+        # Get local rank from environment variable set by torchrun
+        local_rank = int(os.environ['LOCAL_RANK'])
+        world_size = int(os.environ['WORLD_SIZE'])
+        rank = int(os.environ['RANK'])
+
+        # Set device for this process
+        torch.cuda.set_device(local_rank)
+        device = torch.device(f'cuda:{local_rank}')
+
+        return local_rank, world_size, rank, device
+
+    # MPS/CPU: NCCL is not available, so rendezvous over gloo instead. torchrun
+    # supplies the env vars for a real multi-process run; a plain
+    # `python trainer.py --use_ddp` falls back to a single process.
+    os.environ.setdefault('MASTER_ADDR', '127.0.0.1')
+    os.environ.setdefault('MASTER_PORT', '29500')
+    os.environ.setdefault('RANK', '0')
+    os.environ.setdefault('LOCAL_RANK', '0')
+    os.environ.setdefault('WORLD_SIZE', '1')
+    dist.init_process_group(backend='gloo')
+
     local_rank = int(os.environ['LOCAL_RANK'])
     world_size = int(os.environ['WORLD_SIZE'])
     rank = int(os.environ['RANK'])
 
-    # Set device for this process
-    torch.cuda.set_device(local_rank)
-    device = torch.device(f'cuda:{local_rank}')
-
-    return local_rank, world_size, rank, device
+    return local_rank, world_size, rank, torch.device(default_device())
 
 
 def cleanup_ddp():
@@ -114,8 +132,12 @@ def train():
     model = model.to(device)
 
     # Wrap model with DDP if using distributed training
-    if use_ddp:
+    if use_ddp and torch.cuda.is_available():
+        # Unchanged CUDA path.
         model = DDP(model, device_ids=[local_rank], output_device=local_rank)
+    elif use_ddp:
+        # DDP over MPS has no device_ids; MPS is a single-device backend.
+        model = DDP(model)
 
     # Get the underlying model for parameter groups (important for DDP)
     base_model = model.module if use_ddp else model
@@ -188,7 +210,7 @@ def train():
                 # mask= torch.ones(ModelArgs.batch_size, ModelArgs.block_size, dtype=idx.dtype).to(device)  # Create a mask of ones for the entire block
                 # mask = mask.masked_fill(idx == tokenizer.pad_token_id, 0)  # Set padding tokens to 0 in the mask
 
-                with torch.autocast(device_type='cuda', dtype=torch.bfloat16):
+                with autocast_context(device, torch.bfloat16):
                     # Get the base model for DDP
                     eval_model = model.module if use_ddp else model
                     if ModelArgs.use_liger:
@@ -298,7 +320,7 @@ def train():
 
                 token_count += idx.numel()
 
-                with torch.autocast(device_type='cuda', dtype=torch.bfloat16):
+                with autocast_context(device, torch.bfloat16):
                     # Get the base model for DDP
                     train_model = model.module if use_ddp else model
                     if ModelArgs.use_liger:
