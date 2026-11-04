@@ -354,15 +354,6 @@ def prepare_dataset(split, device, batch_size):
 # val_data = create_sequences(val_data['input_ids'], ModelArgs.block_size)
 
 
-def get_batch(split):
-    # generate a small batch of data of inputs x and targets y
-    data = train_data if split == 'train' else val_data
-    ix = torch.randint(len(data) - ModelArgs.block_size, (ModelArgs.batch_size,))
-    x = torch.stack([data[i:i+ModelArgs.block_size] for i in ix])
-    y = torch.stack([data[i+1:i+ModelArgs.block_size+1] for i in ix])
-    x, y = x.to(ModelArgs.device), y.to(ModelArgs.device)
-    return x, y
-
 from torch.utils.data import Dataset
 
 class TokenDataset(Dataset):
@@ -445,32 +436,6 @@ def create_sequences(data, block_size):
 # train_data = create_sequences(train_data_flat['input_ids'], ModelArgs.block_size)
 # val_data = create_sequences(val_data['input_ids'], ModelArgs.block_size)
 
-
-# Define collate_fn
-def collate_fn(split , batch):
-    block_size = ModelArgs.block_size
-    batch_size = len(batch)
-    if(split == 'train'):
-        data = train_data_tensor
-    elif(split == 'test'):
-        data = val_data_tensor
-    ix = torch.randint(len(data) - ModelArgs.block_size, (ModelArgs.batch_size,))
-    x = torch.stack([data[i:i+ModelArgs.block_size] for i in ix])
-    y = torch.stack([data[i+1:i+ModelArgs.block_size+1] for i in ix])
-
-    # print("Shape of x: ", len(x))
-    # print("Length of y: ", len(y))
-    # x, y = x.to(ModelArgs.device), y.to(ModelArgs.device)
-    # x = torch.zeros((batch_size, block_size), dtype=torch.long)
-    # y = torch.zeros((batch_size, block_size), dtype=torch.long)
-    # for i, sequence in enumerate(batch):
-    #     print("Seq: ", sequence)
-    #     print("Shape x: ", sequence[:-1].shape)
-    #     print("Shape of y: ", len(sequence[1:]))
-    #     x[i] = sequence[:-1]  # Input is all tokens except the last one
-    #     y[i] = sequence[1:]   # Target is all tokens except the first one
-    return x, y
-    
 
 class Normalization(nn.Module):
     def __init__(
