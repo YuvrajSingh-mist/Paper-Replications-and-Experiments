@@ -1,0 +1,11 @@
+# Development tooling. CI itself needs only pytest, which it installs directly.
+#
+#   pip install -r requirements-dev.txt
+#   pre-commit install
+#
+# ruff is pinned to the same version as .github/workflows/ci.yml and
+# .pre-commit-config.yaml. All three must match: formatting output changes
+# between releases, so a mismatch fails CI on code you did not touch.
+ruff==0.17.3
+pre-commit==4.7.0
+pytest==9.2.0

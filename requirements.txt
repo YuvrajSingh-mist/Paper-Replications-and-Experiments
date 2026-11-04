@@ -1,0 +1,57 @@
+# Runtime dependencies for the whole repository.
+#
+#   pip install -r requirements.txt
+#
+# Versions were resolved from PyPI on 2026-11-04. They are a starting point, not
+# a verified combination: confirming that this exact set works needs a CUDA
+# machine, which the CI runner does not have. If you find a combination that
+# works, pin it here.
+#
+# Import name and distribution name differ for several of these. Do not
+# `pip install` the import name:
+#
+#   from PIL import ...        -> Pillow
+#   from liger_kernel import   -> liger-kernel
+#   from huggingface_hub import-> huggingface-hub
+#   from muon import ...       -> muon-optimizer   (NOT `muon`, see below)
+#
+# `muon` on PyPI is "a multimodal omics analysis framework" and does not provide
+# MuonWithAuxAdam. `muon-optimizer` does. Installing the wrong one fails at import
+# with a confusing AttributeError.
+
+# Core deep learning. On Linux with a specific CUDA build, install torch and
+# torchvision from the matching index first, then the rest from this file:
+#
+#   pip install torch==2.15.0 torchvision==0.29.2 --index-url https://download.pytorch.org/whl/cu124
+torch==2.15.0
+torchvision==0.29.2
+
+# Model and data loading
+transformers==5.22.1
+datasets==5.1.0
+huggingface-hub==2.4.0
+tokenizers==0.23.3
+sentencepiece==0.2.2
+safetensors==0.8.0
+
+# Training utilities
+tqdm==4.70.1
+wandb==0.31.0
+torchinfo==1.8.0
+muon-optimizer==0.1.0
+torchtune==0.6.1
+liger-kernel==0.8.5
+
+# Numerics and plotting
+numpy==2.5.4
+pandas==3.1.1
+matplotlib==3.11.2
+Pillow==13.0.0
+
+# Audio (CLAP replication, Whisper)
+librosa==1.0.0
+jiwer==4.0.0
+
+# Demos and Spaces
+gradio==6.31.0
+spaces==0.51.3

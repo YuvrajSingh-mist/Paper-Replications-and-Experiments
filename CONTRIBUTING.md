@@ -24,6 +24,29 @@ The version is pinned in `.github/workflows/ci.yml` and
 so the three must stay in step. Bump them together, in a commit that also
 reformats the tree — otherwise every open branch conflicts.
 
+## Installing
+
+```bash
+pip install -r requirements.txt       # runtime
+pip install -r requirements-dev.txt   # ruff, pytest, pre-commit
+```
+
+Pins in `requirements.txt` were resolved on 2026-11-04 and have **not** been
+verified together on a CUDA machine. Treat them as a starting point.
+
+On Linux with a specific CUDA build, install torch from the matching index
+first, then the rest:
+
+```bash
+pip install torch==2.15.0 torchvision==0.29.2 --index-url https://download.pytorch.org/whl/cu124
+pip install -r requirements.txt
+```
+
+Watch the import name. Several distributions differ from the module you import,
+and one of them fails dangerously: `from muon import MuonWithAuxAdam` needs
+`muon-optimizer`, **not** `muon` — which exists on PyPI and installs an
+unrelated omics framework. `tests/test_requirements.py` guards this mapping.
+
 ## Automate it instead
 
 ```bash
