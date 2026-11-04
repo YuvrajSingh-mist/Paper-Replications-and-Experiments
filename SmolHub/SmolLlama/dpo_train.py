@@ -1,6 +1,5 @@
 # 185860
 import random
-from uu import encode
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
