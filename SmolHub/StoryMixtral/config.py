@@ -99,6 +99,14 @@ def get_args():
     return parser.parse_args()
 
 
+def _usable_token(hf_token):
+    """Return the token if it can be used, else None.
+
+    DEFAULT_TOKEN is the literal placeholder '...', which is not a credential.
+    """
+    return hf_token if hf_token and hf_token != DEFAULT_TOKEN else None
+
+
 def create_tokenizer(hf_token=None):
     """Factory function to create tokenizer instance"""
     import sys
@@ -125,18 +133,18 @@ class ModelArgs:
         if args is None:
             args = get_args()
 
-        # Initialize tokenizer if not provided
+        # Initialize tokenizer if not provided. When there is no usable token the
+        # tokenizer stays None rather than raising: this runs at import time in
+        # model.py, and meta-llama/Llama-2-7b-hf is gated.
         if tokenizer_instance is None:
-            # Get HF token from args, environment, or default
             hf_token = args.hf_token
             if hf_token is None:
                 hf_token = os.environ.get('HF_TOKEN', DEFAULT_TOKEN)
+            hf_token = _usable_token(hf_token)
+            tokenizer_instance = create_tokenizer(hf_token) if hf_token else None
 
-            self.tokenizer_instance = create_tokenizer(hf_token)
-        else:
-            self.tokenizer_instance = tokenizer_instance
-
-        self.tokenizer = self.tokenizer_instance.ready_tokenizer()
+        self.tokenizer_instance = tokenizer_instance
+        self.tokenizer = tokenizer_instance.ready_tokenizer() if tokenizer_instance is not None else None
         self.hf_token = args.hf_token or os.environ.get('HF_TOKEN', DEFAULT_TOKEN)
 
         # Model Architecture
@@ -173,7 +181,12 @@ class ModelArgs:
         self.use_compile = args.use_compile
 
         # Data Configuration - Calculate vocab size from tokenizer
-        self.vocab_size = len(self.tokenizer.get_vocab())  # Use actual tokenizer vocab size
+        # Fall back to --vocab_size when no tokenizer was built. meta-llama/* is
+        # gated, so a tokenizer is not always available (see create_model_args).
+        if self.tokenizer is not None:
+            self.vocab_size = len(self.tokenizer.get_vocab())
+        else:
+            self.vocab_size = args.vocab_size
         self.dataset = args.dataset
 
         # Generation Parameters
@@ -219,7 +232,11 @@ def create_model_args(args=None, hf_token=None):
     if hf_token is None:
         hf_token = args.hf_token or os.environ.get('HF_TOKEN', DEFAULT_TOKEN)
 
-    tokenizer_instance = create_tokenizer(hf_token)
+    # Only build a tokenizer when there is a real token. meta-llama/Llama-2-7b-hf is
+    # gated, so from_pretrained raises without credentials -- and model.py calls this
+    # at import time. ModelArgs falls back to --vocab_size (32000, Llama-2's size).
+    hf_token = _usable_token(hf_token)
+    tokenizer_instance = create_tokenizer(hf_token) if hf_token else None
 
     # Create model args with tokenizer
     return ModelArgs(args, tokenizer_instance)
