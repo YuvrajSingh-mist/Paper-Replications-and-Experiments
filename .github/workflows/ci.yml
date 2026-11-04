@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  syntax:
+    name: Parse every Python file (${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The repo is developed against 3.12 but run on newer interpreters.
+        # Parsing under both catches grammar that one version rejects.
+        python: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: ast.parse the tree
+        run: python tools/check_syntax.py .
+
+  removed-stdlib:
+    name: Reject removed standard-library imports
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          # Run on 3.13, the version that actually removed PEP 594 modules.
+          python-version: "3.13"
+      - name: Scan for removed stdlib imports
+        run: python tools/check_removed_stdlib.py .
+
+  ruff:
+    name: Ruff (correctness rules)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: check --output-format=github .

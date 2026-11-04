@@ -732,7 +732,7 @@ else:
 
 #Printing a summary of the architecture
 from torchinfo import summary
-from log_model_parameters import log_model_summary
+# from log_model_parameters import log_model_summary
 
 idx, targets = get_batch('test')
 idx = idx.to(ModelArgs.device)
@@ -746,7 +746,7 @@ print(summary(model=model,
         row_settings=["var_names"]))
 
 # Log summary to file
-log_model_summary(model, idx, "model_parameters.log")
+# log_model_summary(model, idx, "model_parameters.log")
 
 
 def save_text(file_path, step, text):

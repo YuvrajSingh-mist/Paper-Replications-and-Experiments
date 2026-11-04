@@ -1187,7 +1187,7 @@ def train():
             
             # torch.distributed.reduce(loss, dst=0, op=torch.distributed.ReduceOp.SUM)
             # loss /= world_size
-            perplexity = torch.exp(torch.tensor(accumulated_loss)))  # Calculate perplexity
+            perplexity = torch.exp(torch.tensor(accumulated_loss))  # Calculate perplexity
             # if(device == 0):
             wandb.log({
                         "Learning Rate": scheduler.get_last_lr()[0],

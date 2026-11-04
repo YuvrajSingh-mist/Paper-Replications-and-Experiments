@@ -123,7 +123,7 @@ def test_step(model: torch.nn.Module,
           # loss_t = torch.nn.functional.cross_entropy(y_pred.T, labels.T)
           loss = -torch.sum(log_sigmoid(y_pred * labels)) / X.shape[0]
           # loss_tot = (loss_i + loss_t) / 2.0
-          train_loss += loss
+          test_loss += loss
 
 
           # # 3. Optimizer zero grad
