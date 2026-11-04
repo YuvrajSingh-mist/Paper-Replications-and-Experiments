@@ -1075,7 +1075,7 @@ lr_decay_iters = 10000
 total_batch_size = 131072
 micro_batch_size = ModelArgs.batch_size
 gradient_accumulation_steps = total_batch_size // (
-    micro_batch_size * (ModelArgs.block_size * torch.cuda.device_count())
+    micro_batch_size * (ModelArgs.block_size * max(1, torch.cuda.device_count()))
 )
 
 # learning rate decay scheduler (cosine with warmup) from https://github.com/karpathy/nanoGPT/blob/master/train.py

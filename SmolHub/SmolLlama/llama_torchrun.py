@@ -147,7 +147,8 @@ def _load_snapshot(snapshot_path, model, optimizer, scheduler):
     return epoch, step
 
 
-tokenizer = AutoTokenizer.from_pretrained("openai-community/gpt2", hf_token='...')
+# Read the token from the environment; the literal '...' was sent as a credential.
+tokenizer = AutoTokenizer.from_pretrained("openai-community/gpt2", token=os.environ.get("HF_TOKEN") or None)
 
 # tokenizer.pad_token = tokenizer.eos_token
 # if tokenizer.pad_token is None:
@@ -1002,7 +1003,7 @@ lr_decay_iters = 20000
 total_batch_size = 524288
 micro_batch_size = ModelArgs.batch_size
 gradient_accumulation_steps = total_batch_size // (
-    micro_batch_size * (ModelArgs.block_size * torch.cuda.device_count())
+    micro_batch_size * (ModelArgs.block_size * max(1, torch.cuda.device_count()))
 )
 
 # learning rate decay scheduler (cosine with warmup) from https://github.com/karpathy/nanoGPT/blob/master/train.py
