@@ -4,14 +4,18 @@
 # documented rather than enforced, so this config can gate everything else
 # immediately instead of being a wall of ignores on day one:
 #
-#   * ~319 unused imports (F401), plus 51 duplicated imports. Mostly in vendored
-#     third-party code and in superseded `old/` copies. Enable F401 once swept.
+#   * unused imports (F401) and duplicated imports. Enable F401 once swept.
 #
-# What is enforced is the class of bug that actually broke this repo:
+# What is enforced is the class of bug that actually broke this repo, plus
+# consistent formatting:
+#
 #   E9  syntax / runtime errors
 #   F63 invalid comparison / print syntax
 #   F7  syntax errors in statements (break/continue outside loop, ...)
 #   F82 undefined names -- catches `from <deleted module> import x` and typos
+#
+# Formatting is enforced in CI with `ruff format --check`, so run
+# `ruff format .` before pushing (or install the pre-commit hook).
 
 line-length = 120
 
@@ -21,20 +25,29 @@ exclude = [
     ".ipynb_checkpoints",
 ]
 
-# Superseded copies under `*/old/` are excluded from linting: they are dead code
-# that still gets syntax-checked by tools/check_syntax.py. Notebooks are
-# excluded because cell execution is stateful and out-of-order by nature, which
-# makes undefined-name rules noise rather than signal.
+# What is out of scope for both lint and format, and why:
+#
+#   */old/**        superseded copies of scripts, kept for reference. Dead code,
+#                   but still parsed by tools/check_syntax.py so a broken file
+#                   cannot hide here.
+#   *.ipynb         cell execution is stateful and out-of-order, which makes
+#                   undefined-name rules noise rather than signal.
+#   *.md            documentation. Reformatting the embedded Python samples
+#                   churns READMEs without improving the code.
+#   Replications/CLAP/**  vendored copy of the upstream audioset_tagging_cnn
+#                   repository. Keep byte-close to upstream so it stays
+#                   diffable; fixes belong upstream.
 extend-exclude = [
     "**/old/**",
     "**/*.ipynb",
+    "**/*.md",
+    "Replications/CLAP/**",
 ]
 
 [lint]
 select = ["E9", "F63", "F7", "F82"]
 
-[lint.per-file-ignores]
-# Vendored upstream code: CLAP's audioset_tagging_cnn is a copy of the original
-# repository, including its `from models import *` and a stray debug line. Fixes
-# belong upstream.
-"Replications/CLAP/**" = ["F82"]
+[format]
+# Leave quotes as written; the tree mixes single and double styles across
+# generations of scripts and normalizing them adds diff noise for no gain.
+quote-style = "preserve"

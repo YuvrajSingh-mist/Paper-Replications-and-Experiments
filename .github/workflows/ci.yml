@@ -51,4 +51,20 @@ jobs:
       - name: Lint
         uses: astral-sh/ruff-action@v3
         with:
+          # Pinned so formatting output is identical to what contributors get
+          # locally. Bump deliberately, together with a reformat commit.
+          version: "0.17.3"
           args: check --output-format=github .
+
+  format:
+    name: Ruff format (must be applied)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check formatting
+        uses: astral-sh/ruff-action@v3
+        with:
+          version: "0.17.3"
+          # Fails if any in-scope file is not already formatted. Fix locally
+          # with `ruff format .` (ruff.toml controls what is in scope).
+          args: format --check --diff .
