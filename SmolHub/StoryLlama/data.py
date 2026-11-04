@@ -7,40 +7,65 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 
 from datasets import load_dataset
 from torch.utils.data import DataLoader
-from tokenizer import Tokenizer
 from config import ModelArgs
+from tokenizer import Tokenizer
 
 
-tokenizer = Tokenizer().ready_tokenizer()
-
-
+# Dataset selection flags. TinyStories is the default because it is small enough
+# to actually download and train on.
 tinystories = True
 fw = False
+
 fw_train = None
 fw_test = None
-if tinystories:
-    fw_train = load_dataset("roneneldan/TinyStories", split="train")
-    fw_test = load_dataset("roneneldan/TinyStories", split="validation")
-    print(fw_train)
-    print(fw_test)
-if fw:
-    fw_train = load_dataset("HuggingFaceFW/fineweb", name="sample-10BT", split="train", streaming=False)
-    fw_train = fw_train.train_test_split(test_size=0.01)
-    print(fw_train)
-    print(fw_train)
+
+_tokenizer = None
 
 
-tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+def get_tokenizer():
+    """Build the tokenizer on first use.
+
+    This used to run at module scope, so importing this file performed a network
+    request and required a valid Hub token just to import.
+    """
+    global _tokenizer
+    if _tokenizer is None:
+        _tokenizer = Tokenizer().ready_tokenizer()
+        _tokenizer.add_special_tokens({"pad_token": "[PAD]"})
+    return _tokenizer
+
+
+def _ensure_datasets():
+    """Load the dataset on first use.
+
+    This previously ran at module scope, so importing this file downloaded
+    TinyStories, printed it twice, and took a network round trip. Import should
+    have no such side effects.
+    """
+    global fw_train, fw_test
+    if fw_train is None:
+        if tinystories:
+            fw_train = load_dataset("roneneldan/TinyStories", split="train")
+            fw_test = load_dataset("roneneldan/TinyStories", split="validation")
+        elif fw:
+            fw_train = load_dataset("HuggingFaceFW/fineweb", name="sample-10BT", split="train", streaming=False)
+            fw_train = fw_train.train_test_split(test_size=0.01)
+        else:
+            raise ValueError("Set tinystories or fw to True.")
+    return fw_train, fw_test
 
 
 def tokenize_function(examples):
-    return tokenizer(
-        examples['text'], max_length=ModelArgs.block_size, padding='max_length', truncation=True, return_tensors='pt'
+    return get_tokenizer()(
+        examples["text"], max_length=ModelArgs.block_size, padding="max_length", truncation=True, return_tensors="pt"
     )
 
 
 def prepare_dataset(split, device, batch_size):
     print("Device is: ", device)
+
+    _ensure_datasets()
+    tokenizer = get_tokenizer()
 
     def collate_fn(batch):
         # Extract text data
