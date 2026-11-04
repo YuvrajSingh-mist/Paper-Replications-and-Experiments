@@ -19,6 +19,7 @@ the first one win and hide the rest.
 
 from __future__ import annotations
 
+import ast
 import pathlib
 import subprocess
 import sys
@@ -32,7 +33,7 @@ TESTS_DIR = REPO_ROOT / "tests"
 # Library modules used by the trainers. Standalone scripts (model_summary.py,
 # test_tokenizer.py, download_model_weight.py) are deliberately excluded: they do
 # work at import by design, e.g. model_summary prints a parameter table.
-MODULES = ("config", "tokenizer", "data", "model", "trainer", "inference", "dpo_trainer")
+MODULES = ("config", "tokenizer", "data", "model", "trainer", "inference")
 
 PACKAGES = (
     "SmolLlama",
@@ -143,3 +144,62 @@ def test_dataset_loading_is_lazy() -> None:
         timeout=120,
     )
     assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
+
+
+def test_dpo_loader_yields_chosen_rejected_pairs() -> None:
+    """Regression: train_dpo() used the plain-LM loader, so DPOloss got no 'chosen' key.
+
+    Two things must hold: the DPO dataset is the one that gets loaded, and the
+    collate function emits the {chosen, rejected} shape DPOloss consumes.
+    """
+    code = (
+        "import _stub_deps\n"
+        "_stub_deps.install(device_count=0)\n"
+        "import data\n"
+        "data.prepare_dataset_dpo('train', 0, 4)\n"
+        "loaded = [call[1][0] for call in _stub_deps.NETWORK_CALLS if call[0] == 'load_dataset']\n"
+        "assert loaded, 'no dataset was loaded'\n"
+        "assert all('ultrafeedback' in str(name) for name in loaded), loaded\n"
+        "print('ok')\n"
+    )
+    env = {
+        "PYTHONPATH": f"{TESTS_DIR}:{SMOLHUB}",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PATH": "/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin",
+        "HOME": "/tmp",
+    }
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=SMOLHUB / "SmolLlama",
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=120,
+    )
+    assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
+
+
+def test_train_dpo_uses_the_dpo_loader() -> None:
+    """Regression: dpo_train_dpo() used the plain-LM loader, so DPOloss got no 'chosen' key.
+
+    Checked on the AST rather than the test passing, because the bug was a call
+    site: prepare_dataset_dpo() existed and worked the whole time, it was simply
+    never called.
+    """
+    tree = ast.parse((SMOLHUB / "SmolLlama" / "trainer.py").read_text())
+
+    train_dpo = next(node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef) and node.name == "train_dpo")
+    called = {
+        node.func.id for node in ast.walk(train_dpo) if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+    }
+
+    assert "prepare_dataset_dpo" in called, f"train_dpo calls {sorted(called)}"
+    assert "prepare_dataset" not in called, "train_dpo still uses the plain-LM loader"
+
+
+def test_dpo_trainer_entry_point_still_reachable() -> None:
+    """dpo_trainer.py was removed as a duplicate; --train D must still reach DPO."""
+    source = (SMOLHUB / "SmolLlama" / "trainer.py").read_text()
+    assert "def train_dpo(" in source
+    assert 'args.train == "D"' in source
+    assert not (SMOLHUB / "SmolLlama" / "dpo_trainer.py").exists()

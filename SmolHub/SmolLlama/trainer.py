@@ -19,7 +19,7 @@ from config import ModelArgs
 from model import Llama
 
 from inference import topk_sampling
-from data import prepare_dataset
+from data import prepare_dataset, prepare_dataset_dpo
 from tokenizer import Tokenizer
 
 
@@ -304,8 +304,12 @@ class Trainer:
         sft_model.train()
         count = 0
 
-        train_dataloader = prepare_dataset('train', device, ModelArgs.batch_size)
-        val_loader = prepare_dataset('val', device, ModelArgs.batch_size)
+        # DPO consumes batches of {chosen, rejected} pairs, produced by
+        # prepare_dataset_dpo(). This used prepare_dataset(), the plain-language-model
+        # loader, which yields {input_ids, labels}; DPOloss then failed on the missing
+        # 'chosen' key. It also loads the DPO dataset on first use.
+        train_dataloader = prepare_dataset_dpo('train', device, ModelArgs.batch_size)
+        val_loader = prepare_dataset_dpo('val', device, ModelArgs.batch_size)
         # for step in tqdm(range(total_iters)):
         # for epoch in range(ModelArgs.epochs):
         # torch.cuda.synchronize()
