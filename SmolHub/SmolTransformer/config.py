@@ -1,6 +1,8 @@
 import argparse
 from dataclasses import dataclass
 
+from device_utils import default_device
+
 
 def get_args():
     parser = argparse.ArgumentParser(description='SmolTransformer - Encoder-Decoder Transformer for Translation')
@@ -34,7 +36,7 @@ def get_args():
     parser.add_argument('--attn_dropout', type=float, default=0.1, help='Attention dropout rate')
 
     # System Configuration
-    parser.add_argument('--device', type=str, default='cuda', help='Device to use (cuda/cpu)')
+    parser.add_argument('--device', type=str, default=default_device(), help='Device to use (cuda/mps/cpu)')
     parser.add_argument('--use_liger', action='store_true', default=True, help='Use Liger kernels for optimization')
 
     # Training Schedule
@@ -90,7 +92,8 @@ class ModelArgs:
     attn_dropout: float = 0.1
 
     # System Configuration
-    device: str = 'cuda'
+    # cuda when present (unchanged), otherwise mps or cpu.
+    device: str = default_device()
     use_liger: bool = True
 
     # Training Schedule

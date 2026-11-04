@@ -40,7 +40,9 @@ wandb==0.31.0
 torchinfo==1.8.0
 muon-optimizer==0.1.0
 torchtune==0.6.1
-liger-kernel==0.8.5
+# Liger kernels are Triton/CUDA only and do not build on macOS. On Apple
+# Silicon the SmolHub models fall back to plain PyTorch ops automatically.
+liger-kernel==0.8.5; platform_system != "Darwin"
 
 # Numerics and plotting
 numpy==2.5.4

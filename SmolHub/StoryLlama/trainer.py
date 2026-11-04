@@ -2,8 +2,18 @@ import argparse
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.distributed import init_process_group, destroy_process_group
+from torch.distributed import destroy_process_group
+from device_utils import (
+    autocast_context,
+    distributed_world_size,
+    grad_scaler_enabled,
+    select_device,
+    setup_process_group,
+    synchronize,
+    train_device,
+    unwrap,
+    wrap_ddp,
+)
 import math
 from tqdm import tqdm
 import torch
@@ -25,7 +35,7 @@ from tokenizer import Tokenizer
 
 torch.set_float32_matmul_precision('high')
 
-scaler = torch.amp.GradScaler(enabled=(ModelArgs.dtype == 'float16'))
+scaler = torch.amp.GradScaler(enabled=grad_scaler_enabled(ModelArgs.device, ModelArgs.dtype))
 
 
 save_checkpoint_iter = 50
@@ -52,7 +62,7 @@ class Trainer:
     def setup(self, rank=None, world_size=None):
         # os.environ['MASTER_ADDR'] = 'localhost'
         # os.environ['MASTER_PORT'] = '12355'
-        init_process_group("nccl")
+        setup_process_group(ModelArgs.device)
         # torch.cuda.set_device(int(os.environ['LOCAL_RANK']))
 
     def cleanup(self):
@@ -60,7 +70,7 @@ class Trainer:
 
     def _save_snapshot(self, model, optimizer, epoch, step, save_dir):
         snapshot = {}
-        snapshot["MODEL_STATE"] = model.module.state_dict()
+        snapshot["MODEL_STATE"] = unwrap(model).state_dict()
         snapshot["OPTIMIZER_STATE"] = optimizer.state_dict()
         snapshot["EPOCHS_RUN"] = epoch
         snapshot["STEP_RUN"] = step
@@ -98,9 +108,9 @@ class Trainer:
     def train(self):
 
         self.setup()
-        device = int(os.environ["LOCAL_RANK"])
+        device = train_device(ModelArgs.device)
 
-        torch.cuda.set_device(int(device))
+        select_device(ModelArgs.device)
 
         print(f"Start running DDP on rank {device}.")
 
@@ -138,10 +148,10 @@ class Trainer:
         # model = torch.compile(model)
         model = model.to(device)
 
-        model = DDP(model, device_ids=[device])
+        model = wrap_ddp(model, ModelArgs.device)
 
         model.eval()
-        world_size = torch.cuda.device_count()
+        world_size = distributed_world_size(ModelArgs.device)
 
         @torch.inference_mode()
         def estimate_loss(val_loader, val_iterator, device):
@@ -169,7 +179,7 @@ class Trainer:
                     targets = batch['labels']
                     idx = idx.to(device)
                     targets = targets.to(device)
-                    with torch.autocast(device_type=device, dtype=torch.bfloat16):
+                    with autocast_context(ModelArgs.device):
                         logits = model(idx)
                         batch_size, block_size, embeddings_dims = logits.shape
                         logits = logits.view(batch_size * block_size, embeddings_dims)
@@ -214,7 +224,7 @@ class Trainer:
                 print("Total tokens processed: ", token_count)
 
             if (step % eval_iters == 0 and step != 0) or step == total_iters - 1:
-                losses = estimate_loss(val_loader, val_data_iterator, 'cuda')
+                losses = estimate_loss(val_loader, val_data_iterator, ModelArgs.device)
                 # avg_train_loss = losses['train']
                 avg_val_loss = losses['val']
 
@@ -271,7 +281,7 @@ class Trainer:
                 # print("Targets: ", targets)
                 targets = batch['labels'].to(device)
                 token_count += len(idx)
-                with torch.autocast(device_type=ModelArgs.device, dtype=torch.bfloat16):
+                with autocast_context(ModelArgs.device):
                     logits = model(idx)
                     batch_size, block_size, embeddings_dims = logits.shape
                     # print(logits.shape)
@@ -337,7 +347,7 @@ class Trainer:
             # optimizer.step()
             # new_scheduler.step()
 
-            torch.cuda.synchronize()
+            synchronize(ModelArgs.device)
             torch.distributed.reduce(loss, dst=0, op=torch.distributed.ReduceOp.SUM)
             if device == 0:
                 wandb.log(
@@ -370,7 +380,7 @@ class Trainer:
             wandb.finish()
         self.cleanup()
 
-    world_size = torch.cuda.device_count()
+    world_size = distributed_world_size(ModelArgs.device)
     print(f"World size: {world_size}")
 
 
@@ -398,7 +408,10 @@ def parse_args():
     parser.add_argument("--beta_2", type=float, default=ModelArgs.beta_2, help="Beta2 for Adam optimizer.")
     parser.add_argument("--clip", type=float, default=ModelArgs.clip, help="Gradient clipping value.")
     parser.add_argument(
-        "--device", type=str, default=ModelArgs.device, help="Device to run the model on (e.g., 'cuda' or 'cpu')."
+        "--device",
+        type=str,
+        default=ModelArgs.device,
+        help="Device to run the model on (e.g., 'cuda', 'mps' or 'cpu').",
     )
     parser.add_argument("--no_kv_heads", type=int, default=ModelArgs.no_kv_heads, help="Number of key/value heads.")
     parser.add_argument("--vocab_size", type=int, default=ModelArgs.vocab_size, help="Vocabulary size.")

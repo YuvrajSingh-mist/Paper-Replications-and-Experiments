@@ -1,5 +1,8 @@
 from dataclasses import dataclass
+
 import torch
+
+from device_utils import default_device, default_dtype
 
 
 @dataclass
@@ -19,11 +22,12 @@ class ModelArgs:
     beta_1: float = 0.9
     beta_2: float = 0.95
     clip: float = 1.0
-    device: str = 'cuda'
+    # cuda when present (unchanged), otherwise mps or cpu.
+    device: str = default_device()
     no_kv_heads: int = 2
     vocab_size: int = 50304
     eps: float = 1e-5
-    dtype: str = 'bfloat16' if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else 'float16'
+    dtype: str = default_dtype()
     save_checkpoint_dir: str = "checkpoints"
     prompt: str = "Once upon a time"
 
