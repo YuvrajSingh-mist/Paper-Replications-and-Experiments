@@ -18,6 +18,14 @@ tokenizer = Tokenizer().ready_tokenizer()
 
 import argparse
 
+# Dataset selection flags. The __main__ block below overrides these from CLI
+# arguments; code that imports prepare_dataset() is responsible for loading a
+# dataset first, which is enforced by the guard inside it.
+tinystories = False
+fw = True
+train_dataset = None
+val_dataset = None
+
 def load_selected_dataset(tinystories, fw, dpo):
     if tinystories:
         train_dataset = load_dataset("roneneldan/TinyStories", split="train")
@@ -56,6 +64,12 @@ def tokenize_function(examples):
 
 def prepare_dataset(split, device, batch_size):
     print("Device is: ", device)
+
+    if train_dataset is None or val_dataset is None:
+        raise RuntimeError(
+            "No dataset loaded: call load_selected_dataset() and assign "
+            "train_dataset/val_dataset before prepare_dataset()."
+        )
 
     def collate_fn(batch):
         # Extract text data
@@ -125,6 +139,11 @@ def prepare_dataset(split, device, batch_size):
 
 def prepare_dataset_dpo(split, device, batch_size):
 
+    if train_dataset is None or val_dataset is None:
+        raise RuntimeError(
+            "No dataset loaded: call load_selected_dataset() and assign "
+            "train_dataset/val_dataset before prepare_dataset_dpo()."
+        )
 
     def collate_fn(batch):
         # Extract text data

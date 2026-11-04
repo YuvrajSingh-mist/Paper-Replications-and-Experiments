@@ -180,15 +180,6 @@ def prepare_dataset(split, device, batch_size):
 
     return data_loader
 
-def get_batch(split):
-    # generate a small batch of data of inputs x and targets y
-    data = train_data if split == 'train' else val_data
-    ix = torch.randint(len(data) - ModelArgs.block_size, (ModelArgs.batch_size,))
-    x = torch.stack([data[i:i+ModelArgs.block_size] for i in ix])
-    y = torch.stack([data[i+1:i+ModelArgs.block_size+1] for i in ix])
-    x, y = x.to(ModelArgs.device), y.to(ModelArgs.device)
-    return x, y
-
 from torch.utils.data import Dataset
 
 class TokenDataset(Dataset):
@@ -229,22 +220,6 @@ def create_sequences(data, block_size):
     return out
 
 
-
-# Define collate_fn
-def collate_fn(split , batch):
-    block_size = ModelArgs.block_size
-    batch_size = len(batch)
-    if(split == 'train'):
-        data = train_data_tensor
-    elif(split == 'test'):
-        data = val_data_tensor
-    ix = torch.randint(len(data) - ModelArgs.block_size, (ModelArgs.batch_size,))
-    x = torch.stack([data[i:i+ModelArgs.block_size] for i in ix])
-    y = torch.stack([data[i+1:i+ModelArgs.block_size+1] for i in ix])
-
-
-    return x, y
-    
 
 class Normalization(nn.Module):
     def __init__(

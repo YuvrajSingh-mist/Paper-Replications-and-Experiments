@@ -5,6 +5,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
+import math
+from tqdm import tqdm
 import torch
 
 import wandb
@@ -17,7 +19,7 @@ import os
 from config import ModelArgs
 from model import Llama
 
-from inference import greedy_decode
+from inference import greedy_decode, topk_sampling
 from data import prepare_dataset
 from tokenizer import Tokenizer
 
@@ -28,7 +30,7 @@ scaler = torch.amp.GradScaler(enabled=(ModelArgs.dtype == 'float16'))
 
 
 
-save_chechpoint_iter = 50
+save_checkpoint_iter = 50
 total_iters = 10000
 eval_iters = 50
 eval_check = 100
@@ -44,17 +46,15 @@ gradient_accumulation_steps = total_batch_size // (micro_batch_size * (ModelArgs
 class Trainer:
     
     def __init__(self, model_args):
-
-
-        def setup(rank=None, world_size=None):
-            # os.environ['MASTER_ADDR'] = 'localhost'
-            # os.environ['MASTER_PORT'] = '12355'
-            init_process_group("nccl")
-            # torch.cuda.set_device(int(os.environ['LOCAL_RANK']))
-            
-        self.model_args = model_args  
+        self.model_args = model_args
         self.tokenizer = Tokenizer().ready_tokenizer()
-        setup()
+        self.setup()
+
+    def setup(self, rank=None, world_size=None):
+        # os.environ['MASTER_ADDR'] = 'localhost'
+        # os.environ['MASTER_PORT'] = '12355'
+        init_process_group("nccl")
+        # torch.cuda.set_device(int(os.environ['LOCAL_RANK']))
         
     def cleanup(self):
         destroy_process_group()
@@ -68,8 +68,15 @@ class Trainer:
         torch.save(snapshot, os.path.join(save_dir, "snapshot.pt"))
         print(f"Epoch: {epoch} | step {step} | Training snapshot saved at snapshot.pt")
 
+    def find_unused_parameters(self, model):
+        unused = []
+        for name, param in model.named_parameters():
+            if param.grad is None:
+                unused.append(name)
+        return unused
+
     # Warmup phase for 2000 steps
-    def warmup_fn(step):
+    def warmup_fn(self, step):
         if step < 2000:
             return step / 2000  # LR gradually increases
         return 1.0
@@ -77,7 +84,7 @@ class Trainer:
 
     # learning rate decay scheduler (cosine with warmup) from https://github.com/karpathy/nanoGPT/blob/master/train.py
 
-    def get_lr(it):
+    def get_lr(self, it):
         # 1) linear warmup for warmup_iters steps
         if it < warmup_iters:
             return ModelArgs.max_lr * (it + 1) / (warmup_iters + 1)
@@ -91,9 +98,9 @@ class Trainer:
         return min_lr + coeff * (ModelArgs.max_lr - min_lr)
 
 
-    def train():
+    def train(self):
 
-        setup()
+        self.setup()
         device = int(os.environ["LOCAL_RANK"])
 
         torch.cuda.set_device(int(device))
@@ -167,7 +174,7 @@ class Trainer:
                         logits = logits.view(batch_size * block_size, embeddings_dims) 
                         targets = targets.view(batch_size * block_size)
 
-                        loss = F.cross_entropy(logits, targets, ignore_index=tokenizer.pad_token_id)
+                        loss = F.cross_entropy(logits, targets, ignore_index=self.tokenizer.pad_token_id)
 
                         total_loss += loss.item()
                         total_batches += 1
@@ -242,9 +249,9 @@ class Trainer:
             
          
 
-            if step % save_chechpoint_iter == 0 and device == 0 and step != 0:
+            if step % save_checkpoint_iter == 0 and device == 0 and step != 0:
                 print(f"Saving the model checkpoint for step: {step}")
-                _save_snapshot(model, optimizer, None, None, step)
+                self._save_snapshot(model, optimizer, None, None, step)
             
             accumulated_loss = 0.0
             
@@ -283,7 +290,7 @@ class Trainer:
                     # print("OK")
                     targets = targets.view(batch_size * block_size)
                     # print("OK2")
-                    loss = nn.functional.cross_entropy(logits, targets, ignore_index=tokenizer.pad_token_id)
+                    loss = nn.functional.cross_entropy(logits, targets, ignore_index=self.tokenizer.pad_token_id)
                     
                     loss = loss / gradient_accumulation_steps #IDK why div is done here specifically? Maybe think of it in terms of a very big batch being processed and there is need for equal important of each mini batch for the overall big batch
                     accumulated_loss += loss.detach()
@@ -291,7 +298,7 @@ class Trainer:
                 model.require_backward_grad_sync = (micro_step == gradient_accumulation_steps - 1) # so that we dont synchronize the gradient everytime across the GPU devices
                 scaler.scale(loss).backward()
                     # Check for unused parameters
-                unused_params = find_unused_parameters(model)
+                unused_params = self.find_unused_parameters(model)
                 if unused_params:
                     print(f"Unused parameters: {unused_params}")
             # break
@@ -308,7 +315,7 @@ class Trainer:
                         print("Total tokens processed: ", token_count)
                 # count += 1
         
-            lr = get_lr(step)
+            lr = self.get_lr(step)
             for params in optimizer.param_groups:
                 params['lr'] = lr
                 
@@ -370,7 +377,7 @@ class Trainer:
         if device == 0:
           
             wandb.finish()
-        cleanup()
+        self.cleanup()
 
 
     world_size = torch.cuda.device_count()
