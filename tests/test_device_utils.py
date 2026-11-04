@@ -199,17 +199,82 @@ print(ModelArgs().device if callable(ModelArgs) else ModelArgs.device)
     assert "cpu" in result.stdout
 
 
-def test_cuda_dry_run_script_passes():
-    """`scripts/cuda_dry_run.py` simulates an 8-GPU node and must stay green.
+CUDA_DISTRIBUTED_WIRING = """
+import os
+import torch
+import device_utils as du
 
-    It covers the whole dispatch layer under CUDA plus a static check that no
-    ported file has gone back to calling nccl/DDP/set_device directly.
+calls = {}
+
+class FakeDDP:
+    def __init__(self, module, device_ids=None, **kwargs):
+        calls["ddp"] = device_ids
+        self.module = module
+
+class FakeSampler:
+    def __init__(self, dataset, shuffle=True, **kwargs):
+        calls["sampler"] = shuffle
+
+torch.nn.parallel.DistributedDataParallel = FakeDDP
+torch.utils.data.distributed.DistributedSampler = FakeSampler
+torch.distributed.is_initialized = lambda: True
+
+os.environ["LOCAL_RANK"] = "3"
+os.environ["WORLD_SIZE"] = "8"
+os.environ["RANK"] = "3"
+
+# DDP must receive this process's rank as device_ids.
+model = object()
+wrapped = du.wrap_ddp(model)
+assert calls["ddp"] == [3], calls
+assert du.unwrap(wrapped) is model
+
+# The sampler must be the distributed one on CUDA, keeping shuffle.
+du.distributed_sampler([1, 2, 3], shuffle=True)
+assert calls["sampler"] is True, calls
+print("ok")
+"""
+
+
+@pytest.mark.parametrize("package", PACKAGES)
+def test_cuda_uses_ddp_and_distributed_sampler(package):
+    """On CUDA the wrappers must still delegate to torch's distributed classes."""
+    result = _run(package, CUDA_DISTRIBUTED_WIRING, gpus=8)
+    assert result.returncode == 0, result.stderr
+    assert "ok" in result.stdout
+
+
+# Calls that must never appear raw in a file that was ported to device_utils.
+RAW_CUDA_CALLS = (
+    "init_process_group(",
+    "torch.cuda.set_device(",
+    "DistributedDataParallel(",
+    "DistributedSampler(",
+    "torch.cuda.synchronize()",
+    "torch.cuda.empty_cache()",
+)
+
+
+def test_no_ported_file_calls_cuda_directly():
+    """A ported file must route CUDA calls through device_utils.
+
+    Only files that import device_utils are checked: those are the ported ones, so
+    any raw CUDA-only call left in them is an oversight. Comments are stripped
+    first, so commented-out calls do not count.
     """
-    result = subprocess.run(
-        [sys.executable, str(REPO_ROOT / "scripts" / "cuda_dry_run.py")],
-        capture_output=True,
-        text=True,
-        timeout=300,
-    )
-    assert result.returncode == 0, result.stdout[-3000:] + result.stderr[-2000:]
-    assert "CUDA DRY RUN: ALL PASS" in result.stdout
+    offenders = []
+    checked = 0
+    for path in sorted(SMOLHUB.glob("*/*.py")):
+        if path.name in ("device_utils.py", "config.py"):
+            continue
+        src = path.read_text(encoding="utf-8")
+        if "device_utils" not in src:
+            continue
+        checked += 1
+        code = "\n".join(line.split("#", 1)[0] for line in src.splitlines())
+        found = [call for call in RAW_CUDA_CALLS if call in code]
+        if found:
+            offenders.append(f"{path.relative_to(REPO_ROOT)}: {found}")
+
+    assert checked >= 10, f"expected the ported files to be checked, saw {checked}"
+    assert not offenders, "raw CUDA calls in ported files:\n" + "\n".join(offenders)
