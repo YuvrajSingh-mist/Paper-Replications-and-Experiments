@@ -68,3 +68,20 @@ jobs:
           # Fails if any in-scope file is not already formatted. Fix locally
           # with `ruff format .` (ruff.toml controls what is in scope).
           args: format --check --diff .
+
+  tests:
+    name: Import smoke tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # No torch, no CUDA, no network: tests/_stub_deps.py fakes the heavy
+      # dependencies. These tests catch import-time failures that parsing and
+      # linting cannot see -- a dataclass default dividing by a GPU count that
+      # is 0 on this runner, and module-scope code that downloads a model.
+      - name: Install pytest
+        run: python -m pip install --upgrade pytest
+      - name: Run
+        run: python -m pytest tests -q

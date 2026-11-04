@@ -19,7 +19,7 @@ import os
 from config import ModelArgs
 from model import Llama
 
-from inference import greedy_decode, topk_sampling
+from inference import topk_sampling
 from data import prepare_dataset
 from tokenizer import Tokenizer
 

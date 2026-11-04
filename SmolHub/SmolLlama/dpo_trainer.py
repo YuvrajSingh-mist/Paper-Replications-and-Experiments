@@ -18,7 +18,7 @@ import os
 from config import ModelArgs
 from model import Llama
 
-from inference import greedy_decode, topk_sampling
+from inference import topk_sampling
 from data import prepare_dataset
 from tokenizer import Tokenizer
 
@@ -37,8 +37,9 @@ min_lr = 0.1 * ModelArgs.max_lr
 lr_decay_iters = 10000
 total_batch_size = 524288
 micro_batch_size = ModelArgs.batch_size
+# max(1, ...) so this is defined on a machine with no visible CUDA device.
 gradient_accumulation_steps = total_batch_size // (
-    micro_batch_size * (ModelArgs.block_size * torch.cuda.device_count())
+    micro_batch_size * (ModelArgs.block_size * max(1, torch.cuda.device_count()))
 )
 
 

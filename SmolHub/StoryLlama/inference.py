@@ -6,8 +6,19 @@ from tokenizer import Tokenizer
 import argparse
 
 
-tokenizer = Tokenizer()
-tokenizer = tokenizer.ready_tokenizer()
+_tokenizer = None
+
+
+def get_tokenizer():
+    """Build the tokenizer on first use.
+
+    This ran at module scope, so importing this module for `topk_sampling` (as
+    the trainers do) performed a network request.
+    """
+    global _tokenizer
+    if _tokenizer is None:
+        _tokenizer = Tokenizer().ready_tokenizer()
+    return _tokenizer
 
 
 def remove_prefix(state_dict, prefix):
@@ -22,6 +33,7 @@ def remove_prefix(state_dict, prefix):
 
 
 def topk_sampling(model, prompt, device, max_length=50, top_k=50, temperature=1.0):
+    tokenizer = get_tokenizer()
     input_ids = tokenizer.encode(prompt, return_tensors='pt').to(device)
     generated_tokens = []
     ModelArgs.inference = True

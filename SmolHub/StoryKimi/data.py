@@ -17,20 +17,31 @@ tinystories = True
 fw = False
 fw_train = None
 fw_test = None
-if tinystories:
-    fw_train = load_dataset("roneneldan/TinyStories", split="train")
-    fw_test = load_dataset("roneneldan/TinyStories", split="validation")
-    print(fw_train)
-    print(fw_test)
-if fw:
-    fw_train = load_dataset("HuggingFaceFW/fineweb", name="sample-10BT", split="train", streaming=False)
-    fw_train = fw_train.train_test_split(test_size=0.01)
-    print(fw_train)
-    print(fw_train)
+
+
+def _ensure_datasets():
+    """Load the dataset on first use.
+
+    This previously ran at module scope, so importing this module downloaded
+    TinyStories and printed it, purely as a side effect of the import.
+    """
+    global fw_train, fw_test
+    if fw_train is None:
+        if tinystories:
+            fw_train = load_dataset("roneneldan/TinyStories", split="train")
+            fw_test = load_dataset("roneneldan/TinyStories", split="validation")
+        elif fw:
+            fw_train = load_dataset("HuggingFaceFW/fineweb", name="sample-10BT", split="train", streaming=False)
+            fw_train = fw_train.train_test_split(test_size=0.01)
+        else:
+            raise ValueError("Set tinystories or fw to True.")
+    return fw_train, fw_test
 
 
 def prepare_dataset(split, device, batch_size, model_args, tokenizer_instance, use_ddp=False):
     print("Device is: ", device)
+
+    _ensure_datasets()
 
     global tokenizer
     tokenizer = tokenizer_instance
