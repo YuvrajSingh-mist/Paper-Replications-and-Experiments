@@ -127,8 +127,7 @@ SmolTransformer/
 ├── README.md          # This file
 ├── checkpoints/       # Model checkpoints
 ├── generated_data/    # Generated text samples
-├── gradio/            # Gradio interface (optional)
-└── old/              # Backup files
+└── gradio/            # Gradio interface (optional)
 ```
 
 ## Model Parameters
