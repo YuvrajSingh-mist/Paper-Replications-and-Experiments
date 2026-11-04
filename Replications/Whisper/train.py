@@ -7,7 +7,6 @@ from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 import torch
-from datasets import Dataset
 from torch.utils.data import DataLoader
 import wandb
 from tqdm import tqdm
@@ -74,9 +73,6 @@ beta_2 = 0.98
 
 torch.manual_seed(1337)
 torch.cuda.manual_seed(1337)
-
-
-from jiwer import wer
 
 
 from datasets import concatenate_datasets
@@ -1048,8 +1044,6 @@ def save_to_file(text):
 
 
 # writer = SummaryWriter(log_dir="runs/experiment")
-
-from torch.optim.lr_scheduler import LambdaLR, CosineAnnealingLR, SequentialLR
 
 
 # Warmup phase for 2000 steps

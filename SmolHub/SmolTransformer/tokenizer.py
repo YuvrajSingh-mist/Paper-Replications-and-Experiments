@@ -1,5 +1,4 @@
 from transformers.models.albert import AlbertTokenizer
-from config import ModelArgs
 
 
 class Tokenizer:

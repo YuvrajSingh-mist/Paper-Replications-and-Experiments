@@ -1,6 +1,5 @@
 from torch.utils.data import DataLoader, DistributedSampler
 from datasets import load_dataset
-from config import ModelArgs
 from tokenizer import Tokenizer
 
 

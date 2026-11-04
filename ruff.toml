@@ -4,7 +4,10 @@
 # documented rather than enforced, so this config can gate everything else
 # immediately instead of being a wall of ignores on day one:
 #
-#   * unused imports (F401) and duplicated imports. Enable F401 once swept.
+#   * F811, redundant re-imports of a name already imported in the same scope.
+#     Harmless but noisy. Two of them shadow a module-level name at function
+#     scope, which ruff itself declines to autofix, so this needs review rather
+#     than `--fix`.
 #
 # What is enforced is the class of bug that actually broke this repo, plus
 # consistent formatting:
@@ -13,6 +16,8 @@
 #   F63 invalid comparison / print syntax
 #   F7  syntax errors in statements (break/continue outside loop, ...)
 #   F82 undefined names -- catches `from <deleted module> import x` and typos
+#   F401 unused imports -- an unused import of a module that no longer exists is
+#        still an ImportError at runtime, and unused imports hide the real ones
 #
 # Formatting is enforced in CI with `ruff format --check`, so run
 # `ruff format .` before pushing (or install the pre-commit hook).
@@ -45,7 +50,7 @@ extend-exclude = [
 ]
 
 [lint]
-select = ["E9", "F63", "F7", "F82"]
+select = ["E9", "F63", "F7", "F82", "F401"]
 
 [format]
 # Leave quotes as written; the tree mixes single and double styles across

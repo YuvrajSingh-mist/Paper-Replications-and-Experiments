@@ -42,16 +42,18 @@ pre-commit run --all-files
 
 | Job | Command | What it catches |
 | --- | --- | --- |
-| Ruff | `ruff check .` | `E9`, `F63`, `F7`, `F82` — see below |
+| Ruff | `ruff check .` | `E9`, `F63`, `F7`, `F82`, `F401` — see below |
 | Format | `ruff format --check .` | anything `ruff format .` would change |
 | Parse (3.12, 3.13) | `python tools/check_syntax.py .` | files that do not parse |
 | Removed stdlib | `python tools/check_removed_stdlib.py .` | imports of modules Python deleted |
+| Import smoke tests | `python -m pytest tests -q` | modules that cannot be imported |
 
-Run all four locally with:
+Run all of them locally with:
 
 ```bash
 ruff check . && ruff format --check . && \
-  python tools/check_syntax.py . && python tools/check_removed_stdlib.py .
+  python tools/check_syntax.py . && python tools/check_removed_stdlib.py . && \
+  python -m pytest tests -q
 ```
 
 ## Why these checks exist
@@ -66,6 +68,13 @@ Every one of them corresponds to a bug that actually reached `master`:
   including the merge that introduced it.
 - **Lint (`F82`).** A module imported a helper from a file that did not exist,
   and six trainer classes referenced helpers that were never in scope.
+- **Lint (`F401`).** An unused import of a module that no longer exists still
+  raises `ImportError` at runtime, and a wall of unused imports makes the one
+  that matters impossible to spot.
+- **Import tests.** Every bug above was invisible to parsing and linting. CI was
+  green while `import config` raised `ZeroDivisionError` on any machine without a
+  GPU, and while `SmolMixtral/model.py` demanded Hugging Face credentials just to
+  import. Only importing the module catches that.
 - **Format.** Not a bug, just consistency: it keeps diffs limited to real
   changes instead of reflowing whatever the previous author's editor produced.
 
@@ -83,10 +92,10 @@ without a reason:
 
 ## Known backlog
 
-These are pre-existing and deliberately *not* enforced yet:
-
-- **Unused imports.** Enough of them that enabling `F401` would fail today.
-  Sweep them, then add `F401` to `[lint] select`.
+- **Redundant re-imports (`F811`).** The same name imported twice in one scope.
+  Harmless, but two of them shadow a module-level name inside a function, so this
+  needs a read rather than `--fix`. Sweep them, then add `F811` to
+  `[lint] select`.
 
 ## Running these scripts
 

@@ -1,11 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import math
 from dataclasses import dataclass
 from torchtune.modules import RMSNorm
-from tokenizers import Tokenizer
-from pathlib import Path
 import sentencepiece as spm
 
 
@@ -72,9 +69,6 @@ class Normalization(nn.Module):
 
         x = self.rmsnorm_layer(x)
         return x
-
-
-import numpy as np
 
 
 class RotaryEmbeddings(nn.Module):

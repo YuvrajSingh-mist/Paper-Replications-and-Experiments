@@ -1,36 +1,29 @@
 # 185860
-import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import math
 from dataclasses import dataclass
 
 # from torchtune.modules import RMSNorm
-from tokenizers import Tokenizer
 from pathlib import Path
-import torch.multiprocessing as mp
 from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 import torch
 from datasets import Dataset
 from torch.utils.data import DataLoader
-from transformers.models.prophetnet.modeling_prophetnet import ProphetNetDecoderModelOutput
 import wandb
 from tqdm import tqdm
-from functools import partial
 
 import torch.optim as optim
-from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 
 
 # Load model directly
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoTokenizer
 import os
 
 
-from datasets import load_dataset, concatenate_datasets
+from datasets import load_dataset
 
 train_dataset = load_dataset("trl-lib/ultrafeedback_binarized", split="train")
 val_dataset = load_dataset("trl-lib/ultrafeedback_binarized", split="test")
@@ -756,7 +749,7 @@ def save_to_file(text):
 
 # writer = SummaryWriter(log_dir="runs/experiment")
 
-from torch.optim.lr_scheduler import LambdaLR, CosineAnnealingLR, SequentialLR
+from torch.optim.lr_scheduler import LambdaLR
 
 
 # Warmup phase for 2000 steps

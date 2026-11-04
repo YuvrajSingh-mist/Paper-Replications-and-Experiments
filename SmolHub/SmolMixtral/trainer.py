@@ -1,16 +1,12 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import math
 import torch.optim as optim
-from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 import wandb
 from tqdm import tqdm
-import os
 
-from SmolTransformer.tokenizer import Tokenizer
-from config import create_model_args, create_tokenizer
+from config import create_model_args
 from model import Mixtral, find_unused_parameters
 from data import prepare_dataset
 from inference import topk_sampling, save_to_file

@@ -1,5 +1,4 @@
 import gradio as gr
-from transformers import pipeline
 from config import ModelArgs
 from inference import remove_prefix
 from model import Llama
@@ -10,7 +9,6 @@ import subprocess
 import re
 from tokenizer import Tokenizer
 import torch.nn.functional as F
-import shutil
 
 # Define model paths
 model_paths = {

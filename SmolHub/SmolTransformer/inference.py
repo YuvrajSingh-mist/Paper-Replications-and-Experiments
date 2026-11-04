@@ -1,7 +1,6 @@
 import torch
 import torch.nn.functional as F
 from config import ModelArgs
-import copy
 
 model_args = ModelArgs()
 

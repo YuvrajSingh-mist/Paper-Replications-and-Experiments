@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 # Progress bar and logging
-from tqdm import tqdm
 import wandb
 
 # Check if CUDA is available
