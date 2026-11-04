@@ -1,4 +1,4 @@
-from torch.utils.data.distributed import DistributedSampler
+from device_utils import distributed_sampler
 
 
 from datasets import load_dataset
@@ -85,7 +85,7 @@ def prepare_dataset(split, device, batch_size):
                 fw_train,
                 # generator=generator,
                 batch_size=batch_size,
-                sampler=DistributedSampler(fw_train, shuffle=True),
+                sampler=distributed_sampler(fw_train, shuffle=True),
                 collate_fn=collate_fn,
                 drop_last=True,
                 shuffle=False,
@@ -94,7 +94,7 @@ def prepare_dataset(split, device, batch_size):
             data_loader = DataLoader(
                 fw_test,
                 batch_size=batch_size,
-                sampler=DistributedSampler(fw_test, shuffle=True),
+                sampler=distributed_sampler(fw_test, shuffle=True),
                 collate_fn=collate_fn,
                 drop_last=True,
                 shuffle=False,
@@ -104,7 +104,7 @@ def prepare_dataset(split, device, batch_size):
             data_loader = DataLoader(
                 fw_train['train'],
                 batch_size=batch_size,
-                sampler=DistributedSampler(fw_train['train'], shuffle=True),
+                sampler=distributed_sampler(fw_train['train'], shuffle=True),
                 collate_fn=collate_fn,
                 drop_last=True,
                 shuffle=False,
@@ -114,7 +114,7 @@ def prepare_dataset(split, device, batch_size):
                 fw_train['test'],
                 batch_size=batch_size,
                 # generator=generator,
-                sampler=DistributedSampler(fw_train["test"]),
+                sampler=distributed_sampler(fw_train["test"]),
                 collate_fn=collate_fn,
                 drop_last=True,
                 shuffle=False,

@@ -4,9 +4,23 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 from dataclasses import dataclass
-from torch.utils.data.distributed import DistributedSampler
-from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.distributed import init_process_group, destroy_process_group
+from device_utils import (
+    teardown_process_group,
+    distributed_sampler,
+    reduce_sum_to_main,
+    autocast_context,
+    default_device,
+    default_dtype,
+    distributed_world_size,
+    grad_scaler_enabled,
+    is_main_process,
+    select_device,
+    setup_process_group,
+    synchronize,
+    train_device,
+    unwrap,
+    wrap_ddp,
+)
 import torch
 from torch.utils.data import DataLoader
 import wandb
@@ -18,7 +32,8 @@ from transformers import AutoTokenizer
 import os
 
 torch.manual_seed(1337)
-torch.cuda.manual_seed(1337)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed(1337)
 
 
 # import wandb
@@ -87,12 +102,12 @@ if fw:
 def setup(rank=None, world_size=None):
     # os.environ['MASTER_ADDR'] = 'localhost'
     # os.environ['MASTER_PORT'] = '12355'
-    init_process_group("nccl")
+    setup_process_group()
     # torch.cuda.set_device(int(os.environ['LOCAL_RANK']))
 
 
 def cleanup():
-    destroy_process_group()
+    teardown_process_group()
 
 
 @dataclass
@@ -114,11 +129,11 @@ class ModelArgs:
     beta_1 = 0.9
     beta_2 = 0.95
     clip = 1.0
-    device = 'cuda'
+    device = default_device()
     no_kv_heads = 2
     vocab_size = 50304  # powers of 2 so nice!
     eps = 1e-5
-    dtype = 'bfloat16' if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else 'float16'
+    dtype = default_dtype()
 
 
 #     dtype = 'bfloat16'
@@ -126,7 +141,7 @@ class ModelArgs:
 
 def _save_snapshot(model, optimizer, scheduler, epoch, step):
     snapshot = {
-        "MODEL_STATE": model.module.state_dict(),
+        "MODEL_STATE": unwrap(model).state_dict(),
         "OPTIMIZER_STATE": optimizer.state_dict(),
         # "SCHEDULER_STATE": scheduler.state_dict(),
         "EPOCHS_RUN": epoch,
@@ -214,7 +229,7 @@ def prepare_dataset(split, device, batch_size):
         return input_encodings
 
     # Create DistributedSampler for proper shuffling and partitioning across processes
-    # dist_sampler = DistributedSampler(fw_train["text"], shuffle=True)
+    # dist_sampler = distributed_sampler(fw_train["text"], shuffle=True)
 
     # Create DataLoader with custom collate_fn
     # print(fw_dataset)
@@ -225,7 +240,7 @@ def prepare_dataset(split, device, batch_size):
                 fw_train,
                 # generator=generator,
                 batch_size=batch_size,
-                sampler=DistributedSampler(fw_train, shuffle=True),
+                sampler=distributed_sampler(fw_train, shuffle=True),
                 collate_fn=collate_fn,
                 drop_last=True,
                 shuffle=False,
@@ -234,7 +249,7 @@ def prepare_dataset(split, device, batch_size):
             data_loader = DataLoader(
                 fw_test,
                 batch_size=batch_size,
-                sampler=DistributedSampler(fw_test, shuffle=True),
+                sampler=distributed_sampler(fw_test, shuffle=True),
                 collate_fn=collate_fn,
                 drop_last=True,
                 shuffle=False,
@@ -244,7 +259,7 @@ def prepare_dataset(split, device, batch_size):
             data_loader = DataLoader(
                 fw_train['train'],
                 batch_size=batch_size,
-                sampler=DistributedSampler(fw_train['train'], shuffle=True),
+                sampler=distributed_sampler(fw_train['train'], shuffle=True),
                 collate_fn=collate_fn,
                 drop_last=True,
                 shuffle=False,
@@ -254,7 +269,7 @@ def prepare_dataset(split, device, batch_size):
                 fw_train['test'],
                 batch_size=batch_size,
                 # generator=generator,
-                sampler=DistributedSampler(fw_train["test"]),
+                sampler=distributed_sampler(fw_train["test"]),
                 collate_fn=collate_fn,
                 drop_last=True,
                 shuffle=False,
@@ -805,7 +820,7 @@ def topk_sampling(model, prompt, device, max_length=50, top_k=50, temperature=1.
     ModelArgs.inference = True
     for _ in range(max_length):
         with torch.no_grad():
-            outputs = model.module(input_ids)
+            outputs = unwrap(model)(input_ids)
             logits = outputs[:, -1, :]
 
             probs = F.softmax(logits, dim=-1)
@@ -828,7 +843,7 @@ def topk_sampling(model, prompt, device, max_length=50, top_k=50, temperature=1.
 
 
 def beam_search(model, tokenizer, prompt, beam_width=5, max_length=50, temperature=1.0):
-    device = next(model.module.parameters()).device
+    device = next(unwrap(model).parameters()).device
     input_ids = tokenizer(prompt, return_tensors="pt").to(device)['input_ids']
     beam_scores = torch.zeros(beam_width, device=device)
     beam_sequences = input_ids.repeat(beam_width, 1)
@@ -916,7 +931,7 @@ def greedy_decode(
 
     for _ in range(max_length):
         with torch.no_grad():
-            outputs = model.module(input_ids)
+            outputs = unwrap(model)(input_ids)
             logits = outputs[:, -1, :]  # Get logits for the last token
 
             # Apply temperature scaling
@@ -992,7 +1007,7 @@ def trapezoidal_lr_scheduler(optimizer, max_lr, total_steps, warmup_steps, plate
 
 torch.set_float32_matmul_precision('high')
 
-scaler = torch.amp.GradScaler(enabled=(ModelArgs.dtype == 'float16'))
+scaler = torch.amp.GradScaler(enabled=grad_scaler_enabled(ModelArgs.device, ModelArgs.dtype))
 
 save_chechpoint_iter = 50
 total_iters = 10000
@@ -1026,9 +1041,9 @@ def get_lr(it):
 
 def train():
     setup()
-    device = int(os.environ["LOCAL_RANK"])
+    device = train_device(ModelArgs.device)
 
-    torch.cuda.set_device(int(device))
+    select_device(ModelArgs.device)
     # torch.set_default_device('cuda')
     # train_dataloader = prepare_dataset(ModelArgs.batch_size)
     # rank = torch.distributed.get_rank()
@@ -1037,7 +1052,7 @@ def train():
     # device_id = rank % torch.cuda.device_count()
     # CFG = ModelArgs()
 
-    if device == 0:
+    if is_main_process():
         #         # Initialise run
         wandb.init(
             # entity = 'rajceo2031',
@@ -1077,7 +1092,7 @@ def train():
     # model = torch.compile(model)
     model = model.to(device)
 
-    model = DDP(model, device_ids=[device])
+    model = wrap_ddp(model, ModelArgs.device)
 
     # new_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=25000, eta_min=1e-6) #with the prev optim snapshot
     # new_scheduler = trapezoidal_lr_scheduler(optimizer, ModelArgs.max_lr, total_steps, warmup_steps, plateau_steps, decay_steps)
@@ -1098,8 +1113,8 @@ def train():
 
     # optimizer = torch.optim.AdamW(params=model.parameters(), lr=ModelArgs.max_lr)
     # Create DataLoader with collate_fn
-    # train_loader = DataLoader(train_dataset,  batch_size=ModelArgs.batch_size, shuffle=False, sampler=DistributedSampler(train_dataset, shuffle=True, num_replicas=int(os.environ["WORLD_SIZE"]), rank=device))
-    # val_loader = DataLoader(val_dataset,   batch_size=ModelArgs.batch_size, shuffle=False, sampler=DistributedSampler(train_dataset, shuffle=True, num_replicas=int(os.environ["WORLD_SIZE"]), rank=device))
+    # train_loader = DataLoader(train_dataset,  batch_size=ModelArgs.batch_size, shuffle=False, sampler=distributed_sampler(train_dataset, shuffle=True, num_replicas=int(os.environ["WORLD_SIZE"]), rank=device))
+    # val_loader = DataLoader(val_dataset,   batch_size=ModelArgs.batch_size, shuffle=False, sampler=distributed_sampler(train_dataset, shuffle=True, num_replicas=int(os.environ["WORLD_SIZE"]), rank=device))
     # print("Loader is ready")
     # print(train_loader)
     # print(next(iter(train_loader)))
@@ -1122,17 +1137,17 @@ def train():
     # Only create progress bar for rank 0
     # eval_epoch_iterator = range(eval_iters)
     # train_epoch_iterator = range(total_iters)
-    # if device == 0:
+    # if is_main_process():
     #     train_epoch_iterator = tqdm(train_epoch_iterator, desc="Training")
 
     # train_epoch_iterator = range(ModelArgs.epochs)
-    # if device == 0:  # Ensure tqdm only runs on rank 0
+    # if is_main_process():  # Ensure tqdm only runs on rank 0
     #     train_epoch_iterator = tqdm(train_epoch_iterator, desc="Training Progress", position=0, leave=True)
 
     # lr_scheduler_cosine = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer, T_max= total_steps - initial_iters)
 
     model.eval()
-    world_size = torch.cuda.device_count()
+    world_size = distributed_world_size(ModelArgs.device)
 
     @torch.inference_mode()
     def estimate_loss(val_loader, val_iterator, device):
@@ -1167,7 +1182,7 @@ def train():
                 targets = batch['labels']
                 idx = idx.to(device)
                 targets = targets.to(device)
-                with torch.autocast(device_type=device, dtype=torch.bfloat16):
+                with autocast_context(ModelArgs.device):
                     logits = model(idx)
                     batch_size, block_size, embeddings_dims = logits.shape
                     logits = logits.view(batch_size * block_size, embeddings_dims)  # Flatten tokens
@@ -1209,7 +1224,7 @@ def train():
     epochs = ModelArgs.epochs
 
     # train_step_iterator = range(len(train_dataloader))
-    # if device == 0:  # Only create progress bar on rank 0
+    # if is_main_process():  # Only create progress bar on rank 0
     #   train_step_iterator = tqdm(train_step_iterator, desc="Training Progress", position=0, leave=True)
 
     # Print progress on rank 0
@@ -1217,7 +1232,7 @@ def train():
     train_data_iterator = iter(train_dataloader)
     val_data_iterator = iter(val_loader)
     token_count = 0
-    if device == 0:
+    if is_main_process():
         train_loader_length = len(train_dataloader)
         # print("Total batches: ", train_loader_length)
     # print("Length of : ", len(train_dataloader))
@@ -1227,7 +1242,7 @@ def train():
         # print("Dataloader things: ", batch)
         # print("Total batches: ", len(train_dataloader))
 
-        if device == 0:
+        if is_main_process():
             # if(step % 100 == 0):
             #     if(step == train_loader_length):
             #       break
@@ -1240,11 +1255,11 @@ def train():
         # all_gpus_avg_val_loss = None
         # every once in a while evaluate the loss on train and val sets
         if (step % eval_iters == 0 and step != 0) or step == total_iters - 1:
-            losses = estimate_loss(val_loader, val_data_iterator, 'cuda')
+            losses = estimate_loss(val_loader, val_data_iterator, ModelArgs.device)
             # avg_train_loss = losses['train']
             avg_val_loss = losses['val']
             # print(f"step {step}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
-            # if device == 0:  # Only print on main process
+            # if is_main_process():  # Only print on main process
             print(f"[GPU {device}] | Step: {step} / {total_iters} | Val Loss: {losses['val']:.4f}")
             # print(f"[GPU {device}] | Epoch {epoch}/{ModelArgs.epochs}| |Step: {step} | Train Loss: {losses['train']:.4f}")
             # print(f"step {step}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
@@ -1252,16 +1267,16 @@ def train():
             # Aggregate average loss across all GPUs
             # avg_train_loss = torch.Tensor([losses['train']]).to(device)
             avg_val_loss = torch.Tensor([losses['val']]).to(device)
-            # torch.distributed.reduce(avg_train_loss, dst=0, op=torch.distributed.ReduceOp.SUM)
-            torch.distributed.reduce(avg_val_loss, dst=0, op=torch.distributed.ReduceOp.SUM)
+            # reduce_sum_to_main(avg_train_loss)
+            reduce_sum_to_main(avg_val_loss)
 
-            if device == 0:
+            if is_main_process():
                 # all_gpus_avg_train_loss = avg_train_loss / world_size
                 # print(f"All_GPUs_Train_losses: {all_gpus_avg_train_loss.item():.4f}")
                 all_gpus_avg_val_loss = avg_val_loss / world_size
                 print(f"All_GPUs_Val_losses: {all_gpus_avg_val_loss.item():.4f}")
 
-                # if device == 0:
+                # if is_main_process():
 
                 # writer.add_scalar("All_GPUs_Train_losses", all_gpus_avg_train_loss.item(), global_step=step)
                 # writer.add_scalar("All_GPUs_Val_losses", all_gpus_avg_val_loss.item(), global_step=step)
@@ -1286,11 +1301,11 @@ def train():
         # if(os.path.exists('snapshot.pt')):
         #    model, optimizer =  _load_snapshot(model=model, optimizer=optimizer, epoch=epoch, step=step, snapshot_path='snapshot.pt')
 
-        # if(step % save_chechpoint_iter == 0 and device == 0 and step != 0):
+        # if(step % save_chechpoint_iter == 0 and is_main_process() and step != 0):
 
         #     _save_snapshot(epoch=epoch, model=model, optimizer=optimizer, step=step)
 
-        if step % save_chechpoint_iter == 0 and device == 0 and step != 0:
+        if step % save_chechpoint_iter == 0 and is_main_process() and step != 0:
             print(f"Saving the model checkpoint for step: {step}")
             _save_snapshot(model, optimizer, None, None, step)
 
@@ -1321,7 +1336,7 @@ def train():
             # print("Targets: ", targets)
             targets = batch['labels'].to(device)
             token_count += len(idx)
-            with torch.autocast(device_type=ModelArgs.device, dtype=torch.bfloat16):
+            with autocast_context(ModelArgs.device):
                 logits = model(idx)
                 batch_size, block_size, embeddings_dims = logits.shape
                 # print(logits.shape)
@@ -1347,7 +1362,7 @@ def train():
                 print(f"Unused parameters: {unused_params}")
             # break
 
-            if device == 0:
+            if is_main_process():
                 if micro_step % 10 == 0:
                     #     if(step == train_loader_length):
                     #       break
@@ -1373,7 +1388,7 @@ def train():
             # Compute gradient norms after clipping
             total_norm_after = torch.norm(torch.stack([torch.norm(p.grad.detach(), 2) for p in model.parameters()]), 2)
 
-            if device == 0 and step != 0:
+            if is_main_process() and step != 0:
                 print(f"Gradient Norm Before Clipping: {total_norm_before.item():.4f}")
                 print(f"Gradient Norm After Clipping: {total_norm_after.item():.4f}")
 
@@ -1383,9 +1398,9 @@ def train():
         # optimizer.step()
         # new_scheduler.step()
 
-        torch.cuda.synchronize()
-        torch.distributed.reduce(loss, dst=0, op=torch.distributed.ReduceOp.SUM)
-        if device == 0:
+        synchronize(ModelArgs.device)
+        reduce_sum_to_main(loss)
+        if is_main_process():
             wandb.log(
                 {
                     "Learning Rate": lr,
@@ -1400,7 +1415,7 @@ def train():
         # print(loss.item())
         # if(step % 100 == 0):
         #     print(f'Step : {step} | GPU: {device} Loss: {loss.item()}')
-        # if device == 0:
+        # if is_main_process():
         #     print("loss: ", loss.item())
         # train_epoch_iterator.set_postfix({"loss": f"{loss.item():.4f}"})
         # print(loss.item())
@@ -1414,7 +1429,7 @@ def train():
         # unused_params = find_unused_parameters(model)
         # print("Unused parameters:", unused_params)
         # break
-        if device == 0 and step % 5 == 0:
+        if is_main_process() and step % 5 == 0:
             count = 3
             while count:  # Only generate text on the main process
                 # print("Generating text...")
@@ -1457,12 +1472,12 @@ def train():
 
         # break
     # Cleanup
-    if device == 0:
+    if is_main_process():
         # writer.close()
         wandb.finish()
     cleanup()
 
 
-world_size = torch.cuda.device_count()
+world_size = distributed_world_size(ModelArgs.device)
 print(f"World size: {world_size}")
 train()

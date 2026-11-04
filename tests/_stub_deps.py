@@ -233,6 +233,10 @@ def install(device_count: int = 0) -> None:
         DataLoader=DataLoader,
         TensorDataset=Dataset,
         Subset=Dataset,
+        # Real classes so device_utils' non-CUDA fallbacks return recognisable
+        # sampler types. A Fake would make every isinstance check pass.
+        RandomSampler=type("RandomSampler", (), {"__init__": lambda self, *a, **k: None}),
+        SequentialSampler=type("SequentialSampler", (), {"__init__": lambda self, *a, **k: None}),
         random_split=lambda *a, **k: [],
     )
     utils.data = data_mod
