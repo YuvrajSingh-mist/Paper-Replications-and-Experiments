@@ -1,0 +1,53 @@
+# Ruff configuration for the whole tree.
+#
+# Scope is deliberately narrow: correctness only. Two pre-existing backlogs are
+# documented rather than enforced, so this config can gate everything else
+# immediately instead of being a wall of ignores on day one:
+#
+#   * ~319 unused imports (F401), plus 51 duplicated imports. Mostly in vendored
+#     third-party code and in superseded `old/` copies. Enable F401 once swept.
+#   * undefined names (F82) in the six SmolHub trainer/dpo files. Those files
+#     reference helpers (`setup`, `get_lr`, `topk_sampling`, `tokenizer`, ...)
+#     that were dropped when a monolithic training script was split into
+#     modules. They are listed in per-file-ignores until fixed.
+#
+# What is enforced is the class of bug that actually broke this repo:
+#   E9  syntax / runtime errors
+#   F63 invalid comparison / print syntax
+#   F7  syntax errors in statements (break/continue outside loop, ...)
+#   F82 undefined names -- catches `from <deleted module> import x` and typos
+
+line-length = 120
+
+exclude = [
+    ".git",
+    "__pycache__",
+    ".ipynb_checkpoints",
+]
+
+# Superseded copies under `*/old/` are excluded from linting: they are dead code
+# that still gets syntax-checked by tools/check_syntax.py. Notebooks are
+# excluded because cell execution is stateful and out-of-order by nature, which
+# makes undefined-name rules noise rather than signal.
+extend-exclude = [
+    "**/old/**",
+    "**/*.ipynb",
+]
+
+[lint]
+select = ["E9", "F63", "F7", "F82"]
+
+[lint.per-file-ignores]
+# Vendored upstream code: CLAP's audioset_tagging_cnn is a copy of the original
+# repository, including its `from models import *`. Fixes belong upstream.
+"Replications/CLAP/**" = ["F82"]
+
+# Known backlog: helpers referenced by these modules were never carried over
+# when a monolithic script was split up. Tracked for a follow-up sweep; ignoring
+# them here keeps the gate useful for every other file in the meantime.
+"SmolHub/SmolLlama/trainer.py" = ["F82"]
+"SmolHub/SmolLlama/dpo_trainer.py" = ["F82"]
+"SmolHub/SmolLlama/dpo_train.py" = ["F82"]
+"SmolHub/SmolLlama/fine_tune.py" = ["F82"]
+"SmolHub/SmolLlama/data.py" = ["F82"]
+"SmolHub/StoryLlama/trainer.py" = ["F82"]
