@@ -1,1 +1,1 @@
-"""LightEval entrypoints for instruct / base / math task suites."""
+"""lm-eval entrypoints for instruct / math task suites."""

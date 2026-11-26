@@ -1,23 +1,23 @@
-# LightEval defaults for ./evals.sh (model path, suite, MPS-safe batch).
+# lm-eval defaults for ./scripts/evals.sh (model path, suite, MPS-safe batch).
 # Experiment identity = git branch; override model on the CLI anytime.
 
 model: HuggingFaceTB/SmolLM-360M-Instruct
-output_path: outputs/lighteval
+output_path: outputs/lm_eval
 
-# instruct (default, fast) | instruct_full (BBH+MMLU-Pro) | base | math
+# instruct (default) | math (gsm8k only)
 suite: instruct
 
-# null → use suite file under suites/
+# null → use suite file under src/eval/suites/
 tasks: null
 
-# LightEval logprobs: flattened = samples × max_choices (÷choices inside the lib).
-# Slim suite ≤4 choices → 8 samples/step needs batch_size 32. instruct_full/BBH: use ~256.
-batch_size: 32
-max_length: 2048             # model context cap (not max new tokens)
-# GSM8K assistant max≈463
-max_new_tokens: 512
-max_samples: null            # set e.g. 16 for a smoke eval
+# Same batch for MC + generative (split script also forces this).
+batch_size: 8
+# null → each task's lm-eval default (gsm8k=5). Split script passes --num-fewshot 1 for gsm8k.
+num_fewshot: null
+max_gen_toks: 256
+max_samples: null            # set e.g. 8 for a smoke eval
 device: null                 # null → auto (mps/cuda/cpu)
 dtype: null                  # null → float16 on MPS, bfloat16 on CUDA
-override_chat_template: true # instruct models
-save_details: true
+apply_chat_template: true    # instruct models
+# Default off — split script enables --log_samples only for ifeval+gsm8k.
+log_samples: false

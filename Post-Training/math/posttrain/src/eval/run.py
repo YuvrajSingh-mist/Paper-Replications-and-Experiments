@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CLI wrapper: build LightEval model_args + task list, then call `lighteval accelerate`."""
+"""CLI wrapper around EleutherAI lm-eval (HF backend)."""
 
 from __future__ import annotations
 
@@ -15,13 +15,12 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 logger = logging.getLogger("posttrain.eval")
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+EVAL_DIR = Path(__file__).resolve().parent
 DEFAULT_CONFIG = PROJECT_ROOT / "configs" / "eval.yaml"
 SUITE_FILES = {
-    "instruct": PROJECT_ROOT / "suites" / "instruct_tasks.txt",
-    "instruct_full": PROJECT_ROOT / "suites" / "instruct_full_tasks.txt",
-    "base": PROJECT_ROOT / "suites" / "base_tasks.txt",
+    "instruct": EVAL_DIR / "suites" / "instruct_tasks.txt",
 }
-MATH_TASKS = "gsm8k|5"
+MATH_TASKS = "gsm8k"
 
 
 def load_config(path: Path) -> dict:
@@ -76,79 +75,58 @@ def pick_dtype() -> str:
     return "float32"
 
 
-def _patch_hf_hub_list_models() -> None:
-    """Shim: map deprecated ``model_name=`` to ``search=`` for huggingface_hub ≥0.24.
-
-    LightEval 0.13 still calls ``HfApi.list_models(model_name=...)`` when loading
-    some optional task packs. We do not modify LightEval; this only patches Hub
-    in-process so registry import succeeds.
-    """
-    from huggingface_hub import HfApi
-
-    if getattr(HfApi.list_models, "_math_posttrain_patched", False):
-        return
-    orig = HfApi.list_models
-
-    def _list_models(self, *args, model_name=None, **kwargs):  # noqa: ANN001
-        if model_name is not None and "search" not in kwargs:
-            kwargs["search"] = model_name
-        return orig(self, *args, **kwargs)
-
-    _list_models._math_posttrain_patched = True  # type: ignore[attr-defined]
-    HfApi.list_models = _list_models  # type: ignore[method-assign]
-
-
 def _read_task_file(path: Path) -> str:
-    """Parse a LightEval task list file into a CLI task string.
+    """Parse a task list file into a comma-separated lm-eval task string.
 
     Args:
-        path: Text file with one ``name|fewshot`` per line (# comments ok).
+        path: Text file with one task name per line (# comments ok).
 
     Returns:
-        Comma-separated task string, e.g. ``\"gsm8k|5,ifeval|0\"``.
+        Comma-separated task names.
     """
     tasks: list[str] = []
     for line in path.read_text().splitlines():
         line = line.strip()
         if not line or line.startswith("#"):
             continue
-        tasks.append(line)
+        # Allow leftover LightEval-style ``name|shots`` lines; ignore shots.
+        tasks.append(line.split("|", 1)[0])
     return ",".join(tasks)
 
 
 def resolve_tasks(cfg: dict, tasks_arg: str | None, suite_arg: str | None) -> str:
-    """Resolve which LightEval tasks to run.
+    """Resolve which lm-eval tasks to run.
 
     Args:
         cfg: Loaded eval YAML.
         tasks_arg: CLI override — comma list or path to ``.txt``.
-        suite_arg: ``instruct`` | ``instruct_full`` | ``base`` | ``math`` (if no tasks).
+        suite_arg: ``instruct`` | ``math`` (if no tasks).
 
     Returns:
-        Comma-separated ``name|fewshot`` string for LightEval.
+        Comma-separated task names for lm-eval.
     """
     if tasks_arg:
         p = Path(tasks_arg)
         resolved = _resolve_path(p)
         if p.suffix == ".txt" and resolved.exists():
             return _read_task_file(resolved)
-        return tasks_arg
+        return ",".join(t.split("|", 1)[0] for t in tasks_arg.split(",") if t.strip())
     if cfg.get("tasks"):
         raw = cfg["tasks"]
         if isinstance(raw, list):
-            return ",".join(str(t) for t in raw)
-        return str(raw)
+            return ",".join(str(t).split("|", 1)[0] for t in raw)
+        return ",".join(t.split("|", 1)[0] for t in str(raw).split(",") if t.strip())
     suite = suite_arg or cfg.get("suite") or "instruct"
     if suite == "math":
         return MATH_TASKS
     path = SUITE_FILES.get(suite)
     if path is None or not path.exists():
-        raise SystemExit(f"unknown suite={suite!r}; use instruct|instruct_full|base|math or --tasks")
+        raise SystemExit(f"unknown suite={suite!r}; use instruct|math or --tasks")
     return _read_task_file(path)
 
 
 def resolve_model_name(model_path: str) -> str:
-    """Resolve HF id / local dir for LightEval ``model_name=``.
+    """Resolve HF id / local dir for lm-eval ``pretrained=``.
 
     Args:
         model_path: HF hub id, checkpoint dir, or PEFT adapter dir.
@@ -170,40 +148,152 @@ def resolve_model_name(model_path: str) -> str:
     return model_path
 
 
-def main() -> None:
-    """Parse CLI/config and run LightEval accelerate in-process.
+def _first_response(sample: dict) -> str:
+    """Pull the primary model string from an lm-eval sample dict.
 
-    Inputs (CLI or ``configs/eval.yaml``):
-        --model, --suite/--tasks, --output-path, device/dtype/batch/limit.
+    Prefers raw ``resps`` over ``filtered_resps`` (filters may be ``[invalid]``).
+    """
+    for key in ("resps", "filtered_resps"):
+        val = sample.get(key)
+        if not val:
+            continue
+        cur = val
+        while isinstance(cur, (list, tuple)) and cur:
+            cur = cur[0]
+        if isinstance(cur, str) and cur and cur != "[invalid]":
+            return cur
+    return ""
+
+
+def format_readable_samples(task_name: str, samples: list[dict]) -> list[dict]:
+    """Collapse raw lm-eval sample rows into readable per-example JSON objects.
+
+    Args:
+        task_name: lm-eval task id (``ifeval``, ``gsm8k``, …).
+        samples: Raw sample dicts (may include multiple filter rows per doc).
+
+    Returns:
+        Sorted list of slim records with prompt/response/target/metrics.
+    """
+    skip = {
+        "doc_id",
+        "doc",
+        "target",
+        "arguments",
+        "resps",
+        "filtered_resps",
+        "filter",
+        "metrics",
+        "doc_hash",
+        "prompt_hash",
+        "target_hash",
+    }
+    by_id: dict[int, dict] = {}
+    for sample in samples:
+        doc_id = int(sample.get("doc_id", len(by_id)))
+        doc = sample.get("doc") or {}
+        filt = sample.get("filter") or "none"
+
+        score_keys = {
+            k: v
+            for k, v in sample.items()
+            if k not in skip and not str(k).endswith("_stderr")
+        }
+        if isinstance(sample.get("metrics"), dict):
+            score_keys.update(sample["metrics"])
+
+        if doc_id not in by_id:
+            if task_name == "ifeval":
+                prompt = doc.get("prompt", "")
+            elif "question" in doc:
+                prompt = doc["question"]
+            else:
+                prompt = doc.get("prompt") or doc.get("query") or ""
+            entry = {
+                "id": doc_id,
+                "prompt": prompt,
+                "response": _first_response(sample),
+                "target": sample.get("target", ""),
+                "metrics": {},
+            }
+            if task_name == "ifeval" and doc.get("instruction_id_list") is not None:
+                entry["instruction_ids"] = doc["instruction_id_list"]
+            by_id[doc_id] = entry
+
+        entry = by_id[doc_id]
+        if not entry["response"]:
+            entry["response"] = _first_response(sample)
+
+        # gsm8k emits one row per filter (strict-match / flexible-extract).
+        extracted = sample.get("filtered_resps")
+        while isinstance(extracted, (list, tuple)) and extracted:
+            extracted = extracted[0]
+        # Only keep extracted answers when they differ from the full response
+        # (e.g. gsm8k number extract); skip ifeval-style full-string filters.
+        if (
+            isinstance(extracted, str)
+            and extracted
+            and extracted != "[invalid]"
+            and extracted != entry["response"]
+        ):
+            entry["metrics"][f"extracted:{filt}" if filt != "none" else "extracted"] = extracted
+
+        if filt and filt != "none":
+            for k, v in score_keys.items():
+                key = k if ":" in str(k) else f"{k}:{filt}"
+                entry["metrics"][key] = v
+        else:
+            entry["metrics"].update(score_keys)
+
+    return [by_id[i] for i in sorted(by_id)]
+
+
+def write_readable_samples(out_path: Path, task_name: str, samples: list[dict]) -> Path:
+    """Write pretty-printed ``answers_<task>.json`` next to lm-eval outputs.
+
+    Args:
+        out_path: Eval output directory (same as ``--output-path``).
+        task_name: Task id.
+        samples: Raw lm-eval samples for that task.
+
+    Returns:
+        Path of the written JSON file.
+    """
+    # EvaluationTracker nests under sanitized model name.
+    model_dirs = [p for p in out_path.iterdir() if p.is_dir()] if out_path.is_dir() else []
+    dest_dir = model_dirs[0] if len(model_dirs) == 1 else out_path
+    dest = dest_dir / f"answers_{task_name}.json"
+    payload = format_readable_samples(task_name, samples)
+    dest.write_text(json.dumps(payload, indent=2, ensure_ascii=False, default=str) + "\n")
+    return dest
+
+
+def main() -> None:
+    """Parse CLI/config and run lm-eval.
 
     Side effects:
-        Writes LightEval results under ``output_path`` (no return value).
+        Writes results under ``output_path``.
     """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--model", type=str, default=None, help="HF id / local ckpt")
-    parser.add_argument(
-        "--suite",
-        type=str,
-        default=None,
-        choices=["instruct", "instruct_full", "base", "math"],
-    )
+    parser.add_argument("--suite", type=str, default=None, choices=["instruct", "math"])
     parser.add_argument(
         "--tasks",
         type=str,
         default=None,
-        help="Comma-separated LightEval tasks (name|fewshot) or path to .txt task list",
+        help="Comma-separated lm-eval tasks or path to .txt task list",
     )
-    parser.add_argument("--limit", type=int, default=None, help="--max-samples smoke cap")
+    parser.add_argument("--limit", type=int, default=None, help="Smoke cap (max samples)")
     parser.add_argument("--output-path", type=Path, default=None)
     parser.add_argument("--device", type=str, default=None)
     parser.add_argument("--dtype", type=str, default=None)
     parser.add_argument("--batch-size", type=int, default=None)
+    parser.add_argument("--num-fewshot", type=int, default=None)
+    parser.add_argument("--max-gen-toks", type=int, default=None)
     parser.add_argument("--no-chat-template", action="store_true")
-    parser.add_argument("--save-details", action="store_true")
+    parser.add_argument("--log-samples", action="store_true", help="Save per-sample outputs")
     args = parser.parse_args()
-
-    _patch_hf_hub_list_models()
 
     cfg = load_config(args.config) if args.config.exists() else {}
     model_path = args.model or cfg.get("model")
@@ -211,47 +301,95 @@ def main() -> None:
         raise SystemExit("pass --model or set model: in configs/eval.yaml")
 
     tasks = resolve_tasks(cfg, args.tasks, args.suite)
-    out_path = _resolve_path(args.output_path or cfg.get("output_path", "outputs/lighteval"))
+    out_path = _resolve_path(args.output_path or cfg.get("output_path", "outputs/lm_eval"))
     out_path.mkdir(parents=True, exist_ok=True)
 
     device = args.device or cfg.get("device") or pick_device()
     dtype = args.dtype or cfg.get("dtype") or pick_dtype()
-    batch_size = args.batch_size if args.batch_size is not None else cfg.get("batch_size")
-    max_samples = args.limit if args.limit is not None else cfg.get("max_samples")
-    use_chat = not args.no_chat_template and bool(cfg.get("override_chat_template", True))
-    save_details = args.save_details or bool(cfg.get("save_details", False))
+    batch_size = args.batch_size if args.batch_size is not None else cfg.get("batch_size", 8)
+    limit = args.limit if args.limit is not None else cfg.get("max_samples")
+    num_fewshot = args.num_fewshot if args.num_fewshot is not None else cfg.get("num_fewshot")
+    max_gen_toks = args.max_gen_toks if args.max_gen_toks is not None else cfg.get("max_gen_toks", 256)
+    apply_chat = not args.no_chat_template and bool(cfg.get("apply_chat_template", True))
+    log_samples = args.log_samples or bool(cfg.get("log_samples", False))
 
     model_name = resolve_model_name(model_path)
-    # Official LightEval knobs — needed on MPS (auto batch probe OOMs at 8k ctx).
-    # Note: logprobs batch_size is flattened (samples × max_choices); set in eval.yaml.
-    max_length = cfg.get("max_length") or (2048 if device == "mps" else None)
-    if batch_size is None:
-        batch_size = 32 if device == "mps" else batch_size
-    model_args = (
-        f"model_name={model_name},dtype={dtype},device={device},"
-        f"trust_remote_code=True,override_chat_template={str(use_chat)}"
-    )
-    if batch_size is not None:
-        model_args += f",batch_size={int(batch_size)}"
-    if max_length is not None:
-        model_args += f",max_length={int(max_length)}"
+    model_args = f"pretrained={model_name},dtype={dtype},trust_remote_code=True"
 
-    logger.info("LightEval model_args=%s", model_args)
+    # Don't pass num_fewshot=None into lm-eval — that can overwrite task defaults oddly.
+    fewshot_kw: dict = {}
+    if num_fewshot is not None:
+        fewshot_kw["num_fewshot"] = int(num_fewshot)
+
+    # Ensure ifeval extras are importable before lm_eval loads task YAML.
+    try:
+        import immutabledict  # noqa: F401
+        import nltk
+
+        for pkg in ("punkt", "punkt_tab"):
+            try:
+                nltk.data.find(f"tokenizers/{pkg}")
+            except LookupError:
+                nltk.download(pkg, quiet=True)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("ifeval optional deps: %s", exc)
+
+    logger.info("lm-eval model_args=%s device=%s batch_size=%s", model_args, device, batch_size)
     logger.info("tasks=%s", tasks)
     logger.info("output_dir=%s", out_path)
 
-    custom_tasks = PROJECT_ROOT / "suites" / "custom_tasks.py"
+    from lm_eval import simple_evaluate
+    from lm_eval.loggers import EvaluationTracker
 
-    from lighteval.main_accelerate import accelerate
-
-    accelerate(
+    tracker = EvaluationTracker(output_path=str(out_path))
+    results = simple_evaluate(
+        model="hf",
         model_args=model_args,
-        tasks=tasks,
-        output_dir=str(out_path),
-        max_samples=max_samples,
-        save_details=save_details,
-        custom_tasks=str(custom_tasks) if custom_tasks.exists() else None,
+        tasks=tasks.split(","),
+        device=device,
+        batch_size=int(batch_size) if batch_size is not None else "auto",
+        limit=limit,
+        apply_chat_template=apply_chat,
+        fewshot_as_multiturn=apply_chat,
+        gen_kwargs=f"max_gen_toks={int(max_gen_toks)},do_sample=False,temperature=0.0",
+        log_samples=log_samples,
+        evaluation_tracker=tracker,
+        confirm_run_unsafe_code=True,
+        **fewshot_kw,
     )
+    if results is None:
+        raise SystemExit("lm-eval returned no results")
+
+    # lm-eval 0.4.x: simple_evaluate returns results but does not write files;
+    # mirror the CLI and persist via EvaluationTracker.
+    samples = results.pop("samples", None) if log_samples else None
+    if not log_samples:
+        results.pop("samples", None)
+    tracker.save_results_aggregated(
+        results=results,
+        samples=samples if log_samples else None,
+    )
+    if log_samples and samples:
+        for task_name in results.get("configs", {}):
+            if task_name in samples:
+                tracker.save_results_samples(
+                    task_name=task_name, samples=samples[task_name]
+                )
+                pretty = write_readable_samples(out_path, task_name, samples[task_name])
+                logger.info("Wrote readable samples %s", pretty)
+        logger.info("Wrote per-task samples under %s", out_path)
+    else:
+        logger.info("Wrote aggregated results under %s", out_path)
+
+    # Print compact table-friendly summary.
+    table = results.get("results") or {}
+    for task_name, metrics in sorted(table.items()):
+        flat = {
+            k: v
+            for k, v in metrics.items()
+            if not str(k).endswith("_stderr") and k not in ("alias",)
+        }
+        logger.info("%s %s", task_name, flat)
 
 
 if __name__ == "__main__":
