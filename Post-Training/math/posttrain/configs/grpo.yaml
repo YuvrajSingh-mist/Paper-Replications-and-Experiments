@@ -1,0 +1,91 @@
+# TRL GRPO on one Mac Mini + vllm-metal rollouts on the others.
+# Train process: PyTorch MPS + PEFT LoRA.
+# Workers: vllm-metal OpenAI server with --enable-lora and runtime adapter reload.
+
+model_name: HuggingFaceTB/SmolLM-360M-Instruct
+# Prefer a local MLX/HF checkout on workers; trainer uses the HF id or a local path.
+# model_name: /path/to/local-instruct-ckpt
+
+output_dir: outputs/grpo-gsm8k
+seed: 42
+
+# --- LoRA (trainer + vLLM adapter name must match) ---
+lora:
+  name: grpo                 # model id used in /v1/completions when hitting the adapter
+  r: 32
+  alpha: 16
+  dropout: 0.05
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+
+# --- GRPO / TRL ---
+grpo:
+  num_generations: 4
+  # GSM8K assistant max≈463 tokens; 512 covers full reasonings
+  max_completion_length: 512
+  learning_rate: 2.0e-5
+  per_device_train_batch_size: 1   # prompts per step on the trainer
+  gradient_accumulation_steps: 4
+  num_train_epochs: 1
+  logging_steps: 1
+  save_steps: 100
+  bf16: false                     # MPS: prefer fp32/fp16; set true on CUDA
+  fp16: false
+  temperature: 0.7
+  top_p: 0.95
+  beta: 0.0                       # KL coeff; 0 = pure clipped ratio vs rollout logprobs
+  loss_type: grpo
+
+# --- Dataset ---
+data:
+  dataset_name: openai/gsm8k
+  subset: main
+  split: train
+  max_train_samples: null         # set e.g. 256 for a smoke run
+
+# --- vllm-metal workers (rollout only) ---
+# Each worker should already be serving the base model with:
+#   VLLM_ALLOW_RUNTIME_LORA_UPDATING=1
+#   vllm serve <model> --port <port> --dtype bfloat16 --enable-lora \
+#     --lora-modules grpo=<remote_adapter_dir> \
+#     --max-lora-rank 32 --gpu-memory-utilization 0.9
+workers:
+  - url: http://192.168.1.11:8080
+    host: 192.168.1.11
+    user: yuvrajsingh1
+    remote_adapter_dir: ~/grpo_adapters/default/grpo
+  - url: http://192.168.1.12:8080
+    host: 192.168.1.12
+    user: yuvrajsingh1
+    remote_adapter_dir: ~/grpo_adapters/default/grpo
+
+rollouts:
+  request_timeout_s: 120
+  max_workers: 8                  # thread pool for fan-out HTTP
+  logprobs: 1                     # vllm-metal 0.29+ honors sampled-token logprobs
+  completion_path: /v1/completions
+
+# --- Weight sync: save LoRA → rsync → POST /v1/load_lora_adapter ---
+sync:
+  every_steps: 20                 # 0 disables
+  local_adapter_dir: outputs/grpo-gsm8k/adapter_latest
+  health_path: /health
+  health_retries: 30
+  health_interval_s: 2
+  # Prefer runtime LoRA reload (vllm-metal / upstream vLLM). Falls back to ssh restart
+  # only if load_lora_adapter fails and restart_cmd is set.
+  restart_cmd: null
+  # Example restart (optional):
+  # restart_cmd: >
+  #   tmux send-keys -t vllm_worker C-c && sleep 2 &&
+  #   tmux send-keys -t vllm_worker
+  #   'VLLM_ALLOW_RUNTIME_LORA_UPDATING=1 vllm serve $MODEL
+  #   --port 8080 --dtype bfloat16 --enable-lora
+  #   --lora-modules grpo=$HOME/grpo_adapters/default/grpo
+  #   --max-lora-rank 32' Enter

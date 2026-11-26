@@ -1,0 +1,23 @@
+# LightEval defaults for ./evals.sh / math-eval (model path, suite, MPS-safe batch).
+
+# Default baseline model (override with ./evals.sh <model>).
+model: HuggingFaceTB/SmolLM-360M-Instruct
+output_path: outputs/lighteval
+
+# instruct (default, fast) | instruct_full (BBH+MMLU-Pro) | base | math
+suite: instruct
+
+# null → use suite file under eval/suites/
+tasks: null
+
+# LightEval logprobs: flattened = samples × max_choices (÷choices inside the lib).
+# Slim suite ≤4 choices → 8 samples/step needs batch_size 32. instruct_full/BBH: use ~256.
+batch_size: 32
+max_length: 2048             # model context cap (not max new tokens)
+# GSM8K assistant max≈463
+max_new_tokens: 512
+max_samples: null            # set e.g. 16 for a smoke eval
+device: null                 # null → auto (mps/cuda/cpu)
+dtype: null                  # null → float16 on MPS, bfloat16 on CUDA
+override_chat_template: true # instruct models
+save_details: true

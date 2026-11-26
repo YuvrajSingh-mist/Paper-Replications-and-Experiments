@@ -1,0 +1,22 @@
+.venv/
+.python-version.lock
+uv.lock.bak
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.DS_Store
+
+# run artifacts
+outputs/*
+!outputs/.gitkeep
+.grpo_debug/
+*.pt
+*.safetensors
+wandb/
+
+# local eval session crumbs (outputs/ already ignored; belt-and-suspenders)
+**/keepalive.txt
+**/tmux.session
+*.log

@@ -1,0 +1,9 @@
+# Optional heavy instruct suite (BBH + MMLU-Pro). Prefer default instruct on MPS.
+ifeval|0
+hellaswag|0
+arc:easy|0
+arc:challenge|0
+piqa_hf|0
+mmlu_pro|0
+bigbench_hard|3
+gsm8k|5

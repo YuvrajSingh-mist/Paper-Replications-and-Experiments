@@ -1,0 +1,47 @@
+# TRL SFT on GSM8K — trainer Mac Mini (MPS).
+
+model_name: HuggingFaceTB/SmolLM-360M-Instruct
+# Checkpoint root; model id is only in model_name / result folders.
+output_dir: outputs/sft-gsm8k
+seed: 42
+
+lora:
+  enabled: true
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+
+data:
+  dataset_name: openai/gsm8k
+  subset: main
+  train_split: train
+  eval_split: test
+  max_train_samples: null       # e.g. 256 for a smoke run
+  max_eval_samples: 256
+
+train:
+  learning_rate: 2.0e-4
+  per_device_train_batch_size: 1
+  per_device_eval_batch_size: 1
+  gradient_accumulation_steps: 8
+  num_train_epochs: 1
+  logging_steps: 10
+  save_steps: 200
+  eval_strategy: steps
+  eval_steps: 200
+  # Full chat seq (system+user+assistant); GSM8K max≈595 — 512 truncates a few outliers
+  max_length: 512
+  # Max *generated* tokens; GSM8K assistant max≈463
+  max_new_tokens: 512
+  packing: false
+  assistant_only_loss: true     # loss only on assistant tokens
+  bf16: false
+  fp16: false

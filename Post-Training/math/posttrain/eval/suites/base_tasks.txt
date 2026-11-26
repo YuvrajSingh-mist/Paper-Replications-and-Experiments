@@ -1,0 +1,11 @@
+# LightEval task list for base-model suite (name|fewshot).
+hellaswag|0
+arc:easy|0
+arc:challenge|0
+piqa_hf|0
+mmlu_pro|0
+commonsenseqa|0
+triviaqa|0
+winogrande|0
+openbookqa|0
+gsm8k|5
