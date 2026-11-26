@@ -1,0 +1,8 @@
+# Default instruct suite — stock lm-eval task names.
+# gsm8k few-shot is set via configs/eval.yaml (num_fewshot), not here.
+ifeval
+hellaswag
+arc_easy
+arc_challenge
+piqa
+gsm8k

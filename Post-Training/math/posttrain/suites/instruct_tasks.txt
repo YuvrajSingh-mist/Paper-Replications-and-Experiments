@@ -1,8 +1,0 @@
-# Default SmolLM instruct suite (MPS-friendly).
-# No mmlu_pro / bigbench_hard — use SUITE=instruct_full for those.
-ifeval|0
-hellaswag|0
-arc:easy|0
-arc:challenge|0
-piqa_hf|0
-gsm8k|5
