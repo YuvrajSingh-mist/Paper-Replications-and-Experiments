@@ -65,15 +65,15 @@ Gold GSM8K strings are split on `#### <number>`; reasoning goes in `<think>`, fi
 | Env | `uv` + `./setup.sh` | trainer / `--worker` for vllm-metal |
 | SFT | TRL `SFTTrainer` + PEFT LoRA | `scripts/train_sft.sh` · `configs/sft.yaml` |
 | GRPO | TRL `GRPOTrainer` + HTTP rollouts + LoRA rsync/reload | `scripts/train_grpo.sh` · `configs/grpo.yaml` |
-| Eval | Hugging Face **LightEval** | `./evals.sh` / `scripts/eval_instruct_split.sh` · `configs/eval.yaml` |
+| Eval | Hugging Face **lm-eval** | `./scripts/evals.sh` / `scripts/eval_instruct_split.sh` · `configs/eval.yaml` |
 
 ```
 configs/     sft.yaml | grpo.yaml | eval.yaml
 src/sft/               TRL SFT
 src/grpo/              GRPO + rollouts / sync / rewards
-src/eval/              LightEval wrapper (`uv run eval`)
-suites/                instruct / base / instruct_full + piqa_hf
-evals.sh               sole LightEval shell entry
+src/eval/              lm-eval wrapper (`uv run eval`)
+src/eval/suites/       lm-eval task lists
+scripts/evals.sh       lm-eval shell entry
 scripts/eval_instruct_split.sh   hellaswag | gen | mc shards
 WORKLOG.md             this file
 ```
@@ -83,10 +83,10 @@ WORKLOG.md             this file
 - **Branch = experiment** (e.g. `smollm-gsm8k`); template code stays generic. Model only in `configs/*.yaml` / CLI and `outputs/…/<model-basename>/`.
 - Not using smolcluster; trainer ↔ workers = TRL + OpenAI-compatible HTTP + adapter rsync + `/v1/load_lora_adapter`.
 - This branch baseline = **SmolLM-360M-Instruct** (v1) + GSM8K.
-- LightEval (not lm-eval); default suite drops BBH + MMLU-Pro. Optional `SUITE=instruct_full`. Care most about **GSM8K**.
-- Do **not** fork LightEval; thin `src/eval` wrapper + official `model_args` + parquet `piqa_hf`.
+- lm-eval (not lm-eval); default suite drops BBH + MMLU-Pro. Optional `SUITE=instruct_full`. Care most about **GSM8K**.
+- Do **not** fork lm-eval; thin `src/eval` wrapper + official `model_args` + parquet `piqa_hf`.
 - One shell entry `./evals.sh` (no duplicate `scripts/eval.sh`). Split runner for MPS OOM avoidance.
-- LightEval logprobs `batch_size` is flattened; slim suite uses `batch_size: 32` in `eval.yaml`.
+- lm-eval logprobs `batch_size` is flattened; slim suite uses `batch_size: 32` in `eval.yaml`.
 
 ---
 
@@ -94,15 +94,15 @@ WORKLOG.md             this file
 
 Goal: baseline **SmolLM v1 360M-Instruct** (older than SmolLM2) before our SFT/GRPO — story is RL / math post-train on a small older instruct model, not chasing SmolLM2 card parity.
 
-### Our LightEval run (in progress)
+### Our lm-eval run (in progress)
 
 | Field | Value |
 | --- | --- |
 | Model | `HuggingFaceTB/SmolLM-360M-Instruct` |
 | Suite | instruct (fast): `ifeval`, `hellaswag`, `arc`, `piqa_hf`, `gsm8k\|5` — no BBH / MMLU-Pro |
-| Device | MPS, LightEval `batch_size=32` (≈8×4), `max_length=2048` |
-| Log | `outputs/lighteval/SmolLM-360M-Instruct/run.log` |
-| Status | Clean full split in `tmux` `lighteval-split` |
+| Device | MPS, lm-eval `batch_size=32` (≈8×4), `max_length=2048` |
+| Log | `outputs/lm_eval/SmolLM-360M-Instruct/run.log` |
+| Status | Clean full split in `tmux` `lm_eval-split` |
 | Layout | `…/SmolLM-360M-Instruct/{hellaswag,gen,mc}/` → `results/` + `details/` |
 | Results | TBD → paste table here when done |
 
@@ -151,8 +151,8 @@ Also worth a **lenient** vs **strict** column like the reference worklog (format
 | Attempt | Harness | Outcome |
 | --- | --- | --- |
 | 1 | lm-eval Open LLM Leaderboard v1 tasks | Too old vs SmolLM2 reporting; cancelled mid-run |
-| 2 | LightEval 0.13 + built-in SmolLM2-like tasks | Adopted; `./evals.sh <model>` |
-| — | Output dirs | Use model basename only (`outputs/lighteval/SmolLM2-360M-Instruct/`), not `…-instruct` suffix |
+| 2 | lm-eval 0.13 + built-in SmolLM2-like tasks | Adopted; `./evals.sh <model>` |
+| — | Output dirs | Use model basename only (`outputs/lm_eval/SmolLM2-360M-Instruct/`), not `…-instruct` suffix |
 
 Smoke / full:
 
@@ -247,15 +247,15 @@ Current reward (`gsm8k_reward` in `src/grpo/utils/rewards.py`): correctness from
 
 **Done**
 
-- [x] Repo layout: SFT + GRPO + LightEval on Mac Minis
+- [x] Repo layout: SFT + GRPO + lm-eval on Mac Minis
 - [x] GSM8K conversational SFT data + reward helpers
-- [x] LightEval entrypoint; SmolLM2-style instruct suite chosen
+- [x] lm-eval entrypoint; SmolLM2-style instruct suite chosen
 - [x] Token-length study → generation cap **512**
 - [x] Worklog started (this file)
 
 **In flight**
 
-- [ ] Finish SmolLM-360M-Instruct LightEval → fill baseline table
+- [ ] Finish SmolLM-360M-Instruct lm-eval → fill baseline table
 
 **Next**
 
@@ -270,7 +270,7 @@ Current reward (`gsm8k_reward` in `src/grpo/utils/rewards.py`): correctness from
 
 | ID / folder | Stage | Model | What | Outcome |
 | --- | --- | --- | --- | --- |
-| `outputs/lighteval/SmolLM-360M-Instruct/` | eval | SmolLM-360M-Instruct | LightEval instruct (slim) | running |
+| `outputs/lm_eval/SmolLM-360M-Instruct/` | eval | SmolLM-360M-Instruct | lm-eval instruct (slim) | running |
 | — | SFT | SmolLM-360M-Instruct | GSM8K LoRA | not started |
 | — | GRPO | post-SFT | first correctness+format | not started |
 
@@ -280,10 +280,10 @@ Current reward (`gsm8k_reward` in `src/grpo/utils/rewards.py`): correctness from
 
 | Date | Note |
 | --- | --- |
-| 2026-11-24 | Scaffolded qwen math post-train (SFT/GRPO/eval); switched eval to LightEval; measured GSM8K lengths; set max gen 512; started SmolLM2 instruct baseline eval; opened this worklog. |
-| 2026-11-25 | Dropped BBH+MMLU-Pro from default suite; switched target to SmolLM-360M-Instruct (not SmolLM2); LightEval `batch_size: 32` in yaml (removed flat-batch helper); eval in `tmux` `lighteval-smollm`. |
+| 2026-11-24 | Scaffolded qwen math post-train (SFT/GRPO/eval); switched eval to lm-eval; measured GSM8K lengths; set max gen 512; started SmolLM2 instruct baseline eval; opened this worklog. |
+| 2026-11-25 | Dropped BBH+MMLU-Pro from default suite; switched target to SmolLM-360M-Instruct (not SmolLM2); lm-eval `batch_size: 32` in yaml (removed flat-batch helper); eval in `tmux` `lm_eval-smollm`. |
 | 2026-11-25 | Slim eval finished inference (~11h) then died in metrics: `xxhash` 4.x needs bytes. Pin `xxhash>=3.4,<4`; HF response cache kept — restart should score without re-running model. |
-| 2026-11-25 | E2E smoke `OUT=…-smoke ./evals.sh … --limit 8` → results JSON + table, `EXIT:0`. Then full `lighteval-smollm` restarted. |
+| 2026-11-25 | E2E smoke `OUT=…-smoke ./evals.sh … --limit 8` → results JSON + table, `EXIT:0`. Then full `lm_eval-smollm` restarted. |
 | 2026-11-25 | `save_details: true`; wiped smoke + prior full out; restarted full with `--save-details`. |
 | 2026-11-26 | Full suite OOM’d on bootstrap; added `scripts/eval_instruct_split.sh` (no CLI change). Per-task smoke OK; started grouped full split. |
 | 2026-11-26 | Renamed `eval/smollm2`→`eval/suites`, `qwen_eval`→`smol_eval` (`smol-eval` entry; `qwen-math-eval` alias). |

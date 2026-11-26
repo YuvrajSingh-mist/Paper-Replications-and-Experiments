@@ -10,16 +10,16 @@ One codebase, **one branch per experiment**. Configs + model id change on the br
 | --- | --- | --- |
 | **SFT** | TRL `SFTTrainer` + PEFT LoRA | `scripts/train_sft.sh` |
 | **GRPO** | TRL `GRPOTrainer` + vllm-metal rollouts | `scripts/train_grpo.sh` |
-| **Eval** | LightEval | `./evals.sh` · `scripts/eval_instruct_split.sh` |
+| **Eval** | EleutherAI lm-eval | `scripts/evals.sh` · `scripts/eval_instruct_split.sh` |
 
 ```
 configs/          sft.yaml | grpo.yaml | eval.yaml   ← model lives here
 src/sft/          TRL SFT
 src/grpo/         GRPO + rollouts / sync / rewards
-src/eval/         LightEval wrapper (CLI: `uv run eval`)
-suites/           instruct / base / instruct_full task lists
-evals.sh          single entry for LightEval
-scripts/          train_sft / train_grpo / eval_instruct_split / serve_worker
+src/eval/         lm-eval wrapper (CLI: `uv run eval`)
+src/eval/suites/  task lists
+scripts/          evals / eval_instruct_split / train_sft / train_grpo / serve_worker
+setup.sh          env bootstrap (stays at repo root)
 ```
 
 ## New experiment branch
@@ -31,7 +31,8 @@ git checkout -b <model>-<task>    # e.g. qwen25-gsm8k
 ./setup.sh
 ```
 
-Result folders stay model-named: `outputs/lighteval/<model-basename>/…`.
+Result folders stay model-named: `outputs/lm_eval/<model-basename>/…`.
+Per-sample answers (`--log-samples`) are saved only for **ifeval + gsm8k**.
 
 ## Setup
 
@@ -45,11 +46,11 @@ cd Post-Training/math/posttrain
 
 ```bash
 # full instruct suite, split shards (recommended on MPS)
-./scripts/eval_instruct_split.sh HuggingFaceTB/SmolLM-360M-Instruct --save-details
+./scripts/eval_instruct_split.sh HuggingFaceTB/SmolLM-360M-Instruct
 
-./evals.sh HuggingFaceTB/SmolLM-360M-Instruct
-SUITE=math ./evals.sh HuggingFaceTB/SmolLM-360M-Instruct
-./evals.sh HuggingFaceTB/SmolLM-360M-Instruct --limit 8
+./scripts/evals.sh HuggingFaceTB/SmolLM-360M-Instruct
+SUITE=math ./scripts/evals.sh HuggingFaceTB/SmolLM-360M-Instruct
+./scripts/evals.sh HuggingFaceTB/SmolLM-360M-Instruct --limit 8
 ```
 
 ## Worklog
