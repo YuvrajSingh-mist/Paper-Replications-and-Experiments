@@ -57,7 +57,7 @@ ensure_uv() {
 }
 
 setup_train() {
-  echo "==> trainer env (uv sync: TRL SFT/GRPO + LightEval)"
+  echo "==> trainer env (uv sync: TRL SFT/GRPO + lm-eval)"
   ensure_uv
   if [[ ! -f .python-version ]]; then
     echo "3.12" > .python-version
@@ -67,8 +67,8 @@ setup_train() {
   echo
   echo "ready:"
   echo "  bash scripts/train_sft.sh --max-steps 2"
-  echo "  ./evals.sh HuggingFaceTB/SmolLM-360M-Instruct --limit 8"
-  echo "  SUITE=math ./evals.sh HuggingFaceTB/SmolLM-360M-Instruct --limit 8"
+  echo "  ./scripts/evals.sh HuggingFaceTB/SmolLM-360M-Instruct --limit 8"
+  echo "  SUITE=math ./scripts/evals.sh HuggingFaceTB/SmolLM-360M-Instruct --limit 8"
   echo "  bash scripts/train_grpo.sh --max-steps 1 --skip-initial-sync"
 }
 

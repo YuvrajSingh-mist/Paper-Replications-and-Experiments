@@ -1,7 +1,7 @@
 [project]
 name = "posttrain"
 version = "0.1.0"
-description = "Branch-per-experiment post-training template: TRL SFT, GRPO + vllm-metal, LightEval."
+description = "Branch-per-experiment post-training template: TRL SFT, GRPO + vllm-metal, lm-eval."
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 license = { text = "MIT" }
@@ -16,11 +16,10 @@ dependencies = [
     "pyyaml>=6.0",
     "requests>=2.32.0",
     "tqdm>=4.66.0",
-    "lighteval[accelerate]>=0.13.0",
-    # xxhash 4.x requires bytes; LightEval 0.13 still hashes str queries
-    "xxhash>=3.4,<4",
-    "langdetect>=1.0.9",
-    "word2number>=1.1",
+    "lm-eval[hf]>=0.4.13",
+    "immutabledict>=4.0",
+    "nltk>=3.8",
+    "langdetect>=1.0.9",  # ifeval
 ]
 
 [project.scripts]
