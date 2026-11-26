@@ -1,13 +1,13 @@
-# LightEval defaults for ./evals.sh / math-eval (model path, suite, MPS-safe batch).
+# LightEval defaults for ./evals.sh (model path, suite, MPS-safe batch).
+# Experiment identity = git branch; override model on the CLI anytime.
 
-# Default baseline model (override with ./evals.sh <model>).
 model: HuggingFaceTB/SmolLM-360M-Instruct
 output_path: outputs/lighteval
 
 # instruct (default, fast) | instruct_full (BBH+MMLU-Pro) | base | math
 suite: instruct
 
-# null → use suite file under eval/suites/
+# null → use suite file under suites/
 tasks: null
 
 # LightEval logprobs: flattened = samples × max_choices (÷choices inside the lib).

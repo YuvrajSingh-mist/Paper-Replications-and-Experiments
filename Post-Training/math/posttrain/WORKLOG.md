@@ -69,23 +69,24 @@ Gold GSM8K strings are split on `#### <number>`; reasoning goes in `<think>`, fi
 
 ```
 configs/     sft.yaml | grpo.yaml | eval.yaml
-src/sft/               TRL SFT + GSM8K
+src/sft/               TRL SFT
 src/grpo/              GRPO + rollouts / sync / rewards
-src/math_eval/         LightEval wrapper (`math-eval`)
-eval/suites/           instruct / base / instruct_full + piqa_hf
-evals.sh               model-path → LightEval
+src/eval/              LightEval wrapper (`uv run eval`)
+suites/                instruct / base / instruct_full + piqa_hf
+evals.sh               sole LightEval shell entry
 scripts/eval_instruct_split.sh   hellaswag | gen | mc shards
 WORKLOG.md             this file
 ```
 
 **Decisions locked in so far**
 
+- **Branch = experiment** (e.g. `smollm-gsm8k`); template code stays generic. Model only in `configs/*.yaml` / CLI and `outputs/…/<model-basename>/`.
 - Not using smolcluster; trainer ↔ workers = TRL + OpenAI-compatible HTTP + adapter rsync + `/v1/load_lora_adapter`.
-- Code / package names are **model-agnostic**; model id only in configs/CLI and under `outputs/…/<model-basename>/`.
-- Baseline = **SmolLM-360M-Instruct** (v1) for SFT/GRPO story — older instruct ckpt, room to show RL/math gains.
-- LightEval (not lm-eval); default suite drops BBH + MMLU-Pro (too slow on MPS). Optional `SUITE=instruct_full`. Care most about **GSM8K**.
-- Do **not** fork LightEval; thin `math_eval` wrapper + official `model_args` + parquet `piqa_hf`.
-- LightEval logprobs `batch_size` is flattened (samples × choices). Set `batch_size: 32` in `eval.yaml` for slim suite (≈8×4).
+- This branch baseline = **SmolLM-360M-Instruct** (v1) + GSM8K.
+- LightEval (not lm-eval); default suite drops BBH + MMLU-Pro. Optional `SUITE=instruct_full`. Care most about **GSM8K**.
+- Do **not** fork LightEval; thin `src/eval` wrapper + official `model_args` + parquet `piqa_hf`.
+- One shell entry `./evals.sh` (no duplicate `scripts/eval.sh`). Split runner for MPS OOM avoidance.
+- LightEval logprobs `batch_size` is flattened; slim suite uses `batch_size: 32` in `eval.yaml`.
 
 ---
 
@@ -287,3 +288,4 @@ Current reward (`gsm8k_reward` in `src/grpo/utils/rewards.py`): correctness from
 | 2026-11-26 | Full suite OOM’d on bootstrap; added `scripts/eval_instruct_split.sh` (no CLI change). Per-task smoke OK; started grouped full split. |
 | 2026-11-26 | Renamed `eval/smollm2`→`eval/suites`, `qwen_eval`→`smol_eval` (`smol-eval` entry; `qwen-math-eval` alias). |
 | 2026-11-26 | Model-agnostic rename: `qwen/`→`posttrain/`, packages `sft`/`grpo`/`math_eval`, entry `math-eval`; outputs still use model basename. Restarted split eval. |
+| 2026-11-26 | `math_eval`→`eval`, task lists→`suites/`, drop `scripts/eval.sh`; branch-per-experiment (`smollm-gsm8k`). |

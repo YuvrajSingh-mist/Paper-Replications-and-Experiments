@@ -2,4 +2,4 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
-exec uv run math-sft --config "${CONFIG:-configs/sft.yaml}" "$@"
+exec uv run sft --config "${CONFIG:-configs/sft.yaml}" "$@"

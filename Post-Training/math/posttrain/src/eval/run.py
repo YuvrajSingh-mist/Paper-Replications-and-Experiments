@@ -12,14 +12,14 @@ import torch
 import yaml
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-logger = logging.getLogger("math_eval")
+logger = logging.getLogger("posttrain.eval")
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG = PROJECT_ROOT / "configs" / "eval.yaml"
 SUITE_FILES = {
-    "instruct": PROJECT_ROOT / "eval" / "suites" / "instruct_tasks.txt",
-    "instruct_full": PROJECT_ROOT / "eval" / "suites" / "instruct_full_tasks.txt",
-    "base": PROJECT_ROOT / "eval" / "suites" / "base_tasks.txt",
+    "instruct": PROJECT_ROOT / "suites" / "instruct_tasks.txt",
+    "instruct_full": PROJECT_ROOT / "suites" / "instruct_full_tasks.txt",
+    "base": PROJECT_ROOT / "suites" / "base_tasks.txt",
 }
 MATH_TASKS = "gsm8k|5"
 
@@ -240,7 +240,7 @@ def main() -> None:
     logger.info("tasks=%s", tasks)
     logger.info("output_dir=%s", out_path)
 
-    custom_tasks = PROJECT_ROOT / "eval" / "suites" / "custom_tasks.py"
+    custom_tasks = PROJECT_ROOT / "suites" / "custom_tasks.py"
 
     from lighteval.main_accelerate import accelerate
 

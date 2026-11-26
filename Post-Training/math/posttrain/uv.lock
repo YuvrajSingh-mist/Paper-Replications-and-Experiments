@@ -1313,43 +1313,6 @@ wheels = [
 ]
 
 [[package]]
-name = "math-posttrain"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "accelerate" },
-    { name = "datasets" },
-    { name = "langdetect" },
-    { name = "lighteval" },
-    { name = "peft" },
-    { name = "pyyaml" },
-    { name = "requests" },
-    { name = "torch" },
-    { name = "tqdm" },
-    { name = "transformers" },
-    { name = "trl" },
-    { name = "word2number" },
-    { name = "xxhash" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "accelerate", specifier = ">=1.0.0" },
-    { name = "datasets", specifier = ">=3.0.0" },
-    { name = "langdetect", specifier = ">=1.0.9" },
-    { name = "lighteval", extras = ["accelerate"], specifier = ">=0.13.0" },
-    { name = "peft", specifier = ">=0.14.0" },
-    { name = "pyyaml", specifier = ">=6.0" },
-    { name = "requests", specifier = ">=2.32.0" },
-    { name = "torch", specifier = ">=2.6" },
-    { name = "tqdm", specifier = ">=4.66.0" },
-    { name = "transformers", specifier = ">=4.51" },
-    { name = "trl", specifier = ">=0.22" },
-    { name = "word2number", specifier = ">=1.1" },
-    { name = "xxhash", specifier = ">=3.4,<4" },
-]
-
-[[package]]
 name = "mbstrdecoder"
 version = "1.1.5"
 source = { registry = "https://pypi.org/simple" }
@@ -2002,6 +1965,43 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/7f/d9/586fb0510fdfbd95a86f9d5c5046463aca41a55f6573d1a5a082a62e0acb/portalocker-4.4.2.tar.gz", hash = "sha256:7ac85bb2aa3c7873bf2ac72586fc6154afa4671ac786994a16617a6b7ccb3e5e", size = 310698, upload-time = "2026-10-28T00:24:58.214Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e8/43/bca094221a0f9f592fe1e982d090a92075aa302ecaa92c94cc6268a39b2c/portalocker-4.4.2-py3-none-any.whl", hash = "sha256:e661b91af34fc1806740f8e0e42990fe55cd85cbae55675ac48a400a9656a51b", size = 129702, upload-time = "2026-10-28T00:24:56.625Z" },
+]
+
+[[package]]
+name = "posttrain"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "accelerate" },
+    { name = "datasets" },
+    { name = "langdetect" },
+    { name = "lighteval" },
+    { name = "peft" },
+    { name = "pyyaml" },
+    { name = "requests" },
+    { name = "torch" },
+    { name = "tqdm" },
+    { name = "transformers" },
+    { name = "trl" },
+    { name = "word2number" },
+    { name = "xxhash" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "accelerate", specifier = ">=1.0.0" },
+    { name = "datasets", specifier = ">=3.0.0" },
+    { name = "langdetect", specifier = ">=1.0.9" },
+    { name = "lighteval", extras = ["accelerate"], specifier = ">=0.13.0" },
+    { name = "peft", specifier = ">=0.14.0" },
+    { name = "pyyaml", specifier = ">=6.0" },
+    { name = "requests", specifier = ">=2.32.0" },
+    { name = "torch", specifier = ">=2.6" },
+    { name = "tqdm", specifier = ">=4.66.0" },
+    { name = "transformers", specifier = ">=4.51" },
+    { name = "trl", specifier = ">=0.22" },
+    { name = "word2number", specifier = ">=1.1" },
+    { name = "xxhash", specifier = ">=3.4,<4" },
 ]
 
 [[package]]

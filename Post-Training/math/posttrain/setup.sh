@@ -68,7 +68,7 @@ setup_train() {
   echo "ready:"
   echo "  bash scripts/train_sft.sh --max-steps 2"
   echo "  ./evals.sh HuggingFaceTB/SmolLM-360M-Instruct --limit 8"
-  echo "  bash scripts/eval.sh --suite math --limit 8"
+  echo "  SUITE=math ./evals.sh HuggingFaceTB/SmolLM-360M-Instruct --limit 8"
   echo "  bash scripts/train_grpo.sh --max-steps 1 --skip-initial-sync"
 }
 

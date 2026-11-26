@@ -2,4 +2,4 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
-exec uv run math-grpo --config "${CONFIG:-configs/grpo.yaml}" "$@"
+exec uv run grpo --config "${CONFIG:-configs/grpo.yaml}" "$@"
